@@ -43,6 +43,12 @@ describe("api", () => {
     expect(res.status).toBe(400);
   });
 
+  it("private-network url → 422 URL_NOT_ALLOWED", async () => {
+    const res = await request(app).post("/ingest").send({ type: "url", content: "http://localhost:4000/health" });
+    expect(res.status).toBe(422);
+    expect(res.body.error.code).toBe("URL_NOT_ALLOWED");
+  });
+
   it("valid note → 201", async () => {
     const res = await request(app).post("/ingest").send({ type: "note", content: NOTE });
     expect(res.status).toBe(201);

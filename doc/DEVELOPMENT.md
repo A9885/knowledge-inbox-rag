@@ -111,7 +111,7 @@ Write the eval score, average time to first word, and time to save a URL in `eva
 
 ## Phase A — Must do (security + known limits)
 
-### A1. SSRF guard (`lib/fetchUrl.ts`) ⬜
+### A1. SSRF guard (`lib/fetchUrl.ts`) ✅
 - Before fetching, resolve the hostname with `dns.promises.lookup(host, { all: true })`.
 - Reject the URL if:
   - any resolved address is in `127.0.0.0/8`, `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `169.254.0.0/16`, `0.0.0.0`, `::1`, `fc00::/7` or `fe80::/10`, or
@@ -340,7 +340,7 @@ MEMORY_REVIEW_ENABLED=true
 | Time to first word | 0.3–0.5 s (benchmark); 12.5 s measured on 2026-11-18, provider slow that day | |
 | Time to save a URL | 6.8 s | |
 | Search time (current data) | | |
-| Server tests | 20 | |
+| Server tests | 20 | 32 (after A1) |
 
 ## 9. Change log
 
@@ -351,6 +351,7 @@ MEMORY_REVIEW_ENABLED=true
 ### 2026-11-__
 - Phase 0: eval set (13 questions), `npm run eval`, baseline 13/13, `DEBUG=true` debug field + "Show details" panel
 - Fixed A5 note: config name is `CHAT_MODEL`, Gemini fallback `gemini-3.8-flash`
+- A1 SSRF guard: private/loopback/link-local ranges, localhost, non-http schemes and redirect targets (max 3) blocked with 422 URL_NOT_ALLOWED; 12 new tests (32 total)
 - _One line per finished task, e.g. "A1 SSRF guard: blocks private IPs, 4 new tests"_
 
 ## 10. Future work (README, if not built)
