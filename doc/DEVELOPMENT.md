@@ -196,7 +196,7 @@ Write the eval score, average time to first word, and time to save a URL in `eva
 - System prompt addition: "If sources disagree, trust the most recently saved one and mention that it changed."
 - Test: the prompt contains the dates.
 
-### B4. Chat bar: notes, URLs and questions in one box ⬜ (~1.5 h)
+### B4. Chat bar: notes, URLs and questions in one box ✅
 
 **Modes (toggle on the left of the input)**
 ```
@@ -473,6 +473,7 @@ HYBRID_FUSION=rrf            # rrf | weighted
 - E2 root scripts: `npm run setup` / `npm run dev` / `.env.example` complete
 - Latency re-benchmark (`server/eval/latency.md`): NVIDIA laguna 306/323/582 ms first token (min/median/max), Gemini 3.1-flash-lite 871/1057/1189, 3.5-flash-lite 700/1548/2747, 3.8-flash timed out / 503. Gemini not faster, so NVIDIA stays the default when its key is set
 - Phase E: moved 768 dims and rerank to future work; README rewritten (E1); fresh-clone test (E3) found that with only `GEMINI_API_KEY` the zero-setup answer model `gemini-3.8-flash` hung/503, so the Gemini default and A5 fallback are now `gemini-3.1-flash-lite` (eval 13/13 on a scratch server, Gemini only); after that the fresh clone ingested and answered with citations; secrets scan of all history clean, `.env` and `data/*.db` git-ignored (E4)
+- B4 chat bar: mode select (Ask / Save note / Save URL), `/note` and `/url` commands with a hint, `guessIntent` chips (URL: Save link / Ask; note: Save note), "Saved to inbox" confirmation with View and Undo (Undo = `DELETE /items/:id`), inline red errors, list refreshes. Client only, reuses `POST /ingest`. Confirmations are client state (`ChatNotices`) and never sent anywhere: chat history comes from the server's stored messages. `client/tests/intent.test.ts` runs with `node --test` (no new dependency)
 - _One line per finished task, e.g. "A1 SSRF guard: blocks private IPs, 4 new tests"_
 
 ## 10. Future work (README, if not built)

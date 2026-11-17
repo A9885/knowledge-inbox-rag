@@ -21,10 +21,11 @@ export function useItems() {
 
   useEffect(() => void refresh(), [refresh]);
 
-  // Throws on failure so the form can show the error and keep the input.
+  // Throws on failure so the caller can show the error. Returns the saved item.
   const addItem = async (type: Item["type"], content: string) => {
     const item = await api.ingest(type, content);
     setItems((prev) => [item, ...prev]);
+    return item;
   };
 
   /** Pins a user message. An already-pinned message counts as saved. */
