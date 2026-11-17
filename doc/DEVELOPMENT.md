@@ -310,7 +310,7 @@ Order: C1 reindex → C2 chunking → C3 vector optimization → C4 hybrid retri
 - **Report:** `eval/results/<date>-<config>.md` with overall and per-category scores, plus the failed questions and what was retrieved.
 - **Compare:** `npm run eval:compare a.md b.md`.
 
-### C6. Results 🔄 (vector row done; hybrid rows need the sweep re-run after the embedding quota resets)
+### C6. Results ✅ (sweep run 2026-11-18; default switched to hybrid + weighted)
 
 **Workflow (cheap first).** Embeddings are the scarce resource (Gemini free tier ~1000 requests a day), so:
 1. `DB_PATH=<scratch people db> npm run eval:full -- --config configs/<name>.json --retrieval-only` for `vector`, `hybrid-rrf` and `hybrid-weighted`. Recall@3/@5, MRR and Hit@1 only: no LLM, no server. Question embeddings are cached in `server/eval/.cache/` (git-ignored), so the first config embeds the ~37 questions once and the other two cost nothing, and so do re-runs.
@@ -321,16 +321,41 @@ Run each config and fill in the table for the README:
 | Config | Recall@5 | MRR | Answer acc. | Not-found ok | First word p50 | Total p50 |
 |--------|----------|-----|-------------|--------------|----------------|-----------|
 | Vector, old chunking | not run (old chunker no longer in code) | | | | | |
-| Vector, smart chunking | 98% | 0.95 | 97% | 100% | 937 ms | 2445 ms |
-| Hybrid RRF | not run: Gemini embedding quota (429) | | | | | |
-| Hybrid weighted | not run: Gemini embedding quota (429) | | | | | |
+| Vector, smart chunking | 98% | 0.94 | 97% | 100% | 641 ms | 1765 ms |
+| Hybrid RRF | 100% | 0.95 | not run (regressed two_entities) | not run | not run | not run |
+| Hybrid weighted | 99% | 0.98 | 97% | 100% | 469 ms | 1584 ms |
 | + 768 dims | future work, not run | | | | | |
 | + rerank | future work, not run | | | | | |
-| **Chosen default** | `vector` (unchanged; hybrid unproven) | | | | | |
+| **Chosen default** | **hybrid + weighted** | 99% | 0.98 | 97% | 100% | 469 ms | 1584 ms |
 
-**Status.** Only the vector row has real numbers (previous section, Results table). The hybrid runs crashed on 2026-11-18 when Gemini returned 429 (daily embedding quota), so nothing here is invented. One quota-free datum: keyword search alone (FTS5, no embeddings) on the 20 non-follow-up, answerable questions gets Recall@5 100% in every category and MRR 0.88 on list_filter (vector: Recall@5 85%, MRR 0.71), so hybrid is expected to help list_filter; this still has to be confirmed end to end, including answer accuracy, not_found and speed. To finish: start a scratch server per config (`RETRIEVAL_MODE`, `HYBRID_FUSION`, `DEBUG=true`, copy of the people DB), run `npm run eval:full -- --config configs/<name>.json`, then `npm run eval:compare`. Change the default only if hybrid wins on Recall@5, MRR and answer accuracy without hurting not_found or speed.
+**Retrieval-only sweep** (29 answerable non-follow-up questions, scratch people DB, no LLM; Recall@5 / MRR / Hit@1):
 
-Add one paragraph on why the default was chosen, plus per-category notes. For example: "list_filter stays weak: top-k RAG can't aggregate all records; a production fix is structured fields plus SQL filters."
+| Category | vector | hybrid-rrf | hybrid-weighted |
+|---|---|---|---|
+| overall | 98% / 0.94 / 90% | 100% / 0.95 / 90% | 99% / 0.98 / 97% |
+| single_fact | 100% / 1.00 / 100% | 100% / 1.00 / 100% | 100% / 1.00 / 100% |
+| two_entities | 100% / 1.00 / 100% | 100% / **0.88 / 75%** | 100% / 1.00 / 100% |
+| list_filter | 85% / 0.71 / 50% | 100% / 0.88 / 75% | 90% / 0.88 / 75% |
+| keywords_only | 100% / 1.00 / 100% | 100% / 1.00 / 100% | 100% / 1.00 / 100% |
+| changed_fact | 100% / 0.83 / 67% | 100% / 0.83 / 67% | 100% / 1.00 / 100% |
+| similar_names | 100% / 1.00 / 100% | 100% / 1.00 / 100% | 100% / 1.00 / 100% |
+
+Recall@3: vector 97%, rrf 99%, weighted 98%. Embedding time is not comparable here (question embeddings came from the disk cache); the keyword search adds about 1-2 ms.
+
+**Answer eval** (full 37 questions, scratch server with matching `RETRIEVAL_MODE`/`HYBRID_FUSION`, NVIDIA laguna answering), run only for the retrieval winner and for vector:
+
+| | vector | hybrid-weighted |
+|---|---|---|
+| Keyword accuracy | 97% | 97% |
+| Citation accuracy | 90% | 90% |
+| Not-found ok | 100% | 100% |
+| First token p50 / p95 | 641 / 3896 ms | 469 / 1533 ms |
+| Total p50 / p95 | 1765 / 5495 ms | 1584 / 2427 ms |
+| Search p50 / p95 | 0 / 4 ms | 2 / 6 ms |
+
+The speed differences in first token and total are LLM provider variance (the retrieval step differs by about 2 ms); there is no sign hybrid is slower. list_filter answers stay at 75% keyword accuracy in both: top-5 retrieval cannot return everyone for "list all" questions.
+
+**Why hybrid + weighted is the default.** It is the only config that improved retrieval with no regression in any category (MRR 0.94 to 0.98, Hit@1 90% to 97%, Recall@5 98% to 99%; the old profile no longer outranks an `UPDATE` note, and list_filter improved), while answer accuracy, citation accuracy and not_found stayed equal and speed was not worse. RRF reached Recall@5 100% and the best list_filter recall, but it ranked the second entity of two-entity questions lower (two_entities MRR 1.00 to 0.88), so it was dropped before the answer eval. The honest caveat: the dataset is small (23 notes, 37 questions) and vector search was already near the ceiling, so the gain is in ranking quality, not in measured answer accuracy. `RETRIEVAL_MODE=vector` stays available. Also the original note: add per-category notes. For example: "list_filter stays weak: top-k RAG can't aggregate all records; a production fix is structured fields plus SQL filters."
 
 ---
 
@@ -490,6 +515,7 @@ HYBRID_FUSION=rrf            # rrf | weighted
 - Clear 429 handling: provider 429 (embedding or chat) becomes `429 PROVIDER_QUOTA` with a readable message (embedding: Gemini free tier ~1000 requests a day, try later or enable billing), logged as `provider.quota_exceeded`, no fallback attempt; same error shape on HTTP and as the SSE `error` event. The client already shows `error.message` from the body and from SSE errors in the chat, ingest and item banners, so no UI change was needed; 3 new mocked API tests
 - C3 query embedding cache: LRU 500 entries, 1 h TTL, key `sha256(model + question)`, no new dependency; `retrieve` embeds the question and its sub-topics through it in one request. `EMBED_CACHE_DIR` adds a JSON file cache (no TTL); `eval:full` sets it to `server/eval/.cache/` (git-ignored) so re-runs and sweeps cost no embedding calls. 3 new tests (hit skips the call, LRU/TTL, file read/write on a temp dir)
 - C6 workflow: `eval:full --retrieval-only` (also `answers:false` in a config) computes Recall@3/@5, MRR and Hit@1 without LLM answers or a server; documented in C6. Not run (no live calls allowed while the embedding quota is exhausted)
+- C6 sweep (2026-11-18, scratch people DB, ~200 embedding calls in total): retrieval-only on vector / hybrid-rrf / hybrid-weighted, full answer eval on vector and hybrid-weighted. hybrid-weighted wins (MRR 0.94 to 0.98, Hit@1 90% to 97%, no category regressed; answers and not_found unchanged); hybrid-rrf regressed two_entities. **Default is now `RETRIEVAL_MODE=hybrid`, `HYBRID_FUSION=weighted`** (config.ts, `.env.example`, README). 13-question smoke eval on a scratch copy of the live DB: 13/13 (first word avg 1088 ms). Existing databases get `chunks_fts` built by the migration, no reindex needed
 - _One line per finished task, e.g. "A1 SSRF guard: blocks private IPs, 4 new tests"_
 
 ## 10. Future work (README, if not built)
@@ -507,10 +533,10 @@ HYBRID_FUSION=rrf            # rrf | weighted
 
 ## Final checklist
 - [x] Phase 0 + A done, tests pass, committed
-- [ ] Eval score ≥ baseline after each phase
+- [x] Eval score ≥ baseline after each phase (13/13 smoke; people dataset in `eval/results/`)
 - [x] README updated with every feature that was built (E1; update again after B4/C)
 - [x] Fresh clone works with only `GEMINI_API_KEY`
 - [x] No keys in git history
-- [x] B4, C3 (cache), C4, C5 done; [ ] C6 hybrid sweep still to run (retrieval-only first, see C6)
+- [x] B4, C3 (cache), C4, C5 done; C6 sweep done (hybrid + weighted is the default)
 - [x] Phase D (D1-D4) is not built: listed as future work in the README and section 10
 - [ ] Submitted by Thu 19 Nov evening

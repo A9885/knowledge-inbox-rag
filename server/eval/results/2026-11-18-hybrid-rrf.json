@@ -1,0 +1,114 @@
+{
+ "config": "hybrid-rrf",
+ "date": "2026-11-18",
+ "overall": {
+  "n": 37,
+  "recall3": "99%",
+  "recall5": "100%",
+  "mrr": "0.95",
+  "hit1": "90%",
+  "kw": "-",
+  "cite": "-",
+  "nf": "-"
+ },
+ "byCat": {
+  "single_fact": {
+   "n": 10,
+   "recall3": "100%",
+   "recall5": "100%",
+   "mrr": "1.00",
+   "hit1": "100%",
+   "kw": "-",
+   "cite": "-",
+   "nf": "-"
+  },
+  "two_entities": {
+   "n": 4,
+   "recall3": "100%",
+   "recall5": "100%",
+   "mrr": "0.88",
+   "hit1": "75%",
+   "kw": "-",
+   "cite": "-",
+   "nf": "-"
+  },
+  "list_filter": {
+   "n": 4,
+   "recall3": "90%",
+   "recall5": "100%",
+   "mrr": "0.88",
+   "hit1": "75%",
+   "kw": "-",
+   "cite": "-",
+   "nf": "-"
+  },
+  "keywords_only": {
+   "n": 4,
+   "recall3": "100%",
+   "recall5": "100%",
+   "mrr": "1.00",
+   "hit1": "100%",
+   "kw": "-",
+   "cite": "-",
+   "nf": "-"
+  },
+  "changed_fact": {
+   "n": 3,
+   "recall3": "100%",
+   "recall5": "100%",
+   "mrr": "0.83",
+   "hit1": "67%",
+   "kw": "-",
+   "cite": "-",
+   "nf": "-"
+  },
+  "similar_names": {
+   "n": 4,
+   "recall3": "100%",
+   "recall5": "100%",
+   "mrr": "1.00",
+   "hit1": "100%",
+   "kw": "-",
+   "cite": "-",
+   "nf": "-"
+  },
+  "not_found": {
+   "n": 4,
+   "recall3": "-",
+   "recall5": "-",
+   "mrr": "-",
+   "hit1": "-",
+   "kw": "-",
+   "cite": "-",
+   "nf": "-"
+  },
+  "follow_up": {
+   "n": 4,
+   "recall3": "-",
+   "recall5": "-",
+   "mrr": "-",
+   "hit1": "-",
+   "kw": "-",
+   "cite": "-",
+   "nf": "-"
+  }
+ },
+ "speed": {
+  "embedMs": {
+   "p50": "0",
+   "p95": "603"
+  },
+  "searchMs": {
+   "p50": "1",
+   "p95": "3"
+  },
+  "firstMs": {
+   "p50": "-",
+   "p95": "-"
+  },
+  "totalMs": {
+   "p50": "-",
+   "p95": "-"
+  }
+ }
+}

@@ -15,8 +15,8 @@ const schema = z.object({
   EMBED_CACHE_DIR: z.string().optional(), // if set, query embeddings are also cached in a JSON file there (used by the evals)
   RELEVANCE_WINDOW: z.coerce.number().default(0.12), // keep chunks within this of the best score...
   RELEVANCE_HIGH_SCORE: z.coerce.number().default(0.6), // ...or at least this similar, whatever the best is
-  RETRIEVAL_MODE: z.enum(["vector", "hybrid"]).default("vector"), // hybrid = vector + keyword (FTS5), fused
-  HYBRID_FUSION: z.enum(["rrf", "weighted"]).default("rrf"),
+  RETRIEVAL_MODE: z.enum(["vector", "hybrid"]).default("hybrid"), // hybrid = vector + keyword (FTS5), fused; vector = cosine only
+  HYBRID_FUSION: z.enum(["rrf", "weighted"]).default("weighted"),
   DEBUG: z.enum(["true", "false"]).default("false").transform((v) => v === "true"),
   LOG_LEVEL: z.string().default("info"),
 });
