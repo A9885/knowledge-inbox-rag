@@ -1,4 +1,4 @@
-import type { Source } from "../types";
+import type { Debug, Source } from "../types";
 
 // "https://en.wikipedia.org/wiki/Goa" → "en.wikipedia.org/wiki/Goa"
 const shortLink = (u: string) => {
@@ -17,16 +17,37 @@ const jump = (id: string) => {
   el?.scrollIntoView({ behavior: "smooth", block: "center" });
 };
 
+function DebugDetails({ debug: d }: { debug: Debug }) {
+  const t = d.timings;
+  return (
+    <details className="rounded border border-slate-200 bg-slate-50 p-2 text-xs text-slate-600">
+      <summary className="cursor-pointer font-semibold">Show details</summary>
+      <p className="mt-1">Searched for: {d.rewrittenQuestion}</p>
+      <p>
+        embed {t.embedMs}ms · search {t.searchMs}ms · first word {t.firstTokenMs}ms · total {t.totalMs}ms
+      </p>
+      <ul className="mt-1 space-y-0.5">
+        {d.candidates.map((c, i) => (
+          <li key={i} className={c.kept ? "" : "text-slate-400"}>
+            {c.score.toFixed(2)} {c.title} · {c.kept ? "kept" : "dropped"} ({c.reason})
+          </li>
+        ))}
+      </ul>
+    </details>
+  );
+}
+
 interface Props {
   idPrefix: string; // keeps source anchors unique when several answers are on one page
   expandSources?: boolean;
   answer: string;
   sources: Source[];
   suggestions: string[];
+  debug?: Debug;
   onSuggest: (q: string) => void;
 }
 
-export function AnswerView({ idPrefix, expandSources = false, answer, sources, suggestions, onSuggest }: Props) {
+export function AnswerView({ idPrefix, expandSources = false, answer, sources, suggestions, debug, onSuggest }: Props) {
   const uncited = sources.length > 0 && !sources[0].cited;
   return (
     <div className="space-y-4">
@@ -57,6 +78,7 @@ export function AnswerView({ idPrefix, expandSources = false, answer, sources, s
           ))}
         </div>
       )}
+      {debug && <DebugDetails debug={debug} />}
       {sources.length > 0 && (
         <details open={expandSources}>
           <summary className="mb-1 cursor-pointer text-sm font-semibold">Sources ({sources.length})</summary>

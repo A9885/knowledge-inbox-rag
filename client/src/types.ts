@@ -21,10 +21,17 @@ export interface Source {
   cited: boolean;
 }
 
+export interface Debug {
+  rewrittenQuestion: string;
+  candidates: { title: string; score: number; kept: boolean; reason: string }[];
+  timings: { embedMs: number; searchMs: number; firstTokenMs: number; totalMs: number };
+}
+
 export interface Answer {
   answer: string;
   sources: Source[];
   suggestions: string[];
+  debug?: Debug; // only when the server runs with DEBUG=true
 }
 
 export interface Conversation {
@@ -39,4 +46,5 @@ export interface Message {
   content: string;
   sources: Source[];
   suggestions: string[];
+  debug?: Debug; // fresh answers only; not stored with the chat
 }

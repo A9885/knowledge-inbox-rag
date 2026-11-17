@@ -10,6 +10,7 @@ const schema = z.object({
   EMBEDDING_MODEL: z.string().default("gemini-embedding-001"),
   NVIDIA_API_KEY: z.string().optional(), // if set, chat goes to NVIDIA NIM instead of Gemini
   CHAT_MODEL: z.string().optional(),
+  DEBUG: z.enum(["true", "false"]).default("false").transform((v) => v === "true"),
   LOG_LEVEL: z.string().default("info"),
 });
 

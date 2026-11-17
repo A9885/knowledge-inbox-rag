@@ -33,6 +33,7 @@ export function ChatThread({ messages, draft, onSuggest }: Props) {
             idPrefix={m.id}
             answer={m.content}
             sources={m.sources}
+            debug={m.debug}
             suggestions={i === messages.length - 1 ? m.suggestions : []}
             expandSources={i === messages.length - 1}
             onSuggest={onSuggest}

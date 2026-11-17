@@ -71,7 +71,7 @@ export function useChats() {
       setMessages((m) => [
         ...m,
         { id: `${key}-q`, role: "user", content: question, sources: [], suggestions: [] },
-        { id: `${key}-a`, role: "assistant", content: r.answer, sources: r.sources, suggestions: r.suggestions },
+        { id: `${key}-a`, role: "assistant", content: r.answer, sources: r.sources, suggestions: r.suggestions, debug: r.debug },
       ]);
       setTabs(await api.listConversations()); // picks up the new tab / title / order
     } catch (e) {
