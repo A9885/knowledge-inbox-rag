@@ -196,33 +196,132 @@ Write the eval score, average time to first word, and time to save a URL in `eva
 - System prompt addition: "If sources disagree, trust the most recently saved one and mention that it changed."
 - Test: the prompt contains the dates.
 
+### B4. Chat bar: notes, URLs and questions in one box ⬜ (~1.5 h)
+
+**Modes (toggle on the left of the input)**
+```
+[ Ask ▾ ]  Type here...                       [ ➤ ]
+   Ask       → question (RAG answer)
+   Save note → saves text as a note
+   Save URL  → saves the link
+```
+- The send button label follows the mode: **Ask** / **Save**.
+- After saving, the mode goes back to **Ask**.
+
+**Commands (typed in Ask mode)**
+- `/note <text>` → save the text as a note
+- `/url <link>` → save the URL
+- Show a small hint under the input when the text starts with `/`.
+
+**Auto-detect (suggest only, never auto-save)**
+`client/src/lib/intent.ts`:
+```ts
+const Q_ANYWHERE = /\b(what|when|where|who|whom|whose|why|how|which)\b/i;
+const Q_START = /^(is|are|can|could|do|does|did|should|will|tell me|find|show|list)\b/i;
+
+export function guessIntent(text: string): "question" | "note" | "url" | "unclear" {
+  const t = text.trim();
+  if (/^https?:\/\/\S+$/i.test(t)) return "url";
+  if (t.endsWith("?") || Q_ANYWHERE.test(t) || Q_START.test(t)) return "question";
+  if (t.split(/\s+/).length <= 3) return "unclear";
+  return "note";
+}
+```
+
+| Guess | What happens |
+|-------|--------------|
+| question / unclear | Ask normally |
+| url | Chip: "Save this link or ask about it?" [Save link] [Ask] |
+| note | Ask normally, plus a chip under the message: "Save this as a note?" [Save note] |
+
+**Confirmation in the chat**
+```
+You:  /note Gym moved to 7 AM
+App:  ✓ Saved to inbox — "Gym moved to 7 AM"   [View] [Undo]
+```
+- **Undo** calls `DELETE /items/:id`.
+- **View** opens the item panel (from B1).
+- Errors (for example `422 URL_NOT_ALLOWED`) show inline in the chat as a red system message.
+- The saved-items list refreshes after every save or undo.
+
+**Rules**
+- Only explicit actions save: a mode, a command, or a click on a chip.
+- Saving uses the existing `POST /ingest`; no new backend endpoint.
+- Save confirmations are UI messages; they are not sent to the LLM as chat history.
+- Tests: `guessIntent` table test (url / question / note / unclear); a save-confirmation message is not sent as history.
+
 ---
 
-## Phase C — Medium
+## Phase C — Best RAG (retrieval quality)
 
-### C0. Reindex script ✅ (needed by C1 and D3)
+Order: C1 reindex → C2 chunking → C3 vector optimization → C4 hybrid retrieval → C5 evaluation engine → C6 results.
+
+> **Renumbered.** The first three tasks were built under the old numbers (commit messages say C0, C1, C2). Mapping: old C0 = **C1**, old C1 = **C2**, old C2 = **C3 (base)**. The new C3 items, C4, C5 and C6 are still to do.
+
+### C1. Reindex script ✅ (old C0)
 - `npm run reindex` re-chunks and re-embeds every item.
-- Embedding happens outside the transaction, and each item is replaced in its own transaction, so the script is safe to run again after a failure.
-- It logs `reindex.item_done` and `reindex.done`.
+- Embedding happens outside the transaction, one transaction per item, so it's safe to re-run.
+- Logs `reindex.item_done` and `reindex.done`.
 
-### C1. Smarter chunking (`rag/chunker.ts`) ✅
-- **URLs:** split by `h1`–`h3` sections from the Readability HTML. Never mix sections in one chunk; start each chunk with `"<heading>: "`.
-- **Within a section:** pack sentences up to about 2000 characters, overlapping the last 2 sentences between chunks.
-- **Tiny chunks:** merge chunks under 200 characters into their neighbour.
-- **Embedding text:** embed `"<item title> — <chunk>"`, but store and display only the chunk.
-- Then run `npm run reindex` and the eval. If the score drops, revert.
-- Tests:
-  - sections never mix,
-  - sentences overlap between chunks,
-  - tiny chunks are merged.
+### C2. Smarter chunking (`rag/chunker.ts`) ✅ (old C1)
+- **URLs:** split by `h1`–`h3` sections from the Readability HTML; never mix sections; start each chunk with `"<heading>: "`.
+- **Within a section:** pack sentences up to about 2000 characters, overlapping the last 2 sentences.
+- **Tiny chunks:** merge pieces under 200 characters into their neighbour.
+- **Short notes** (< 2000 characters, e.g. a person profile) stay as **one chunk**. _(New rule: add a test; the current packer should already do this.)_
+- **Embedding text:** embed `"<item title> — <chunk>"`; store and display only the chunk.
+- Run `npm run reindex` afterwards. **The live DB still needs this run once.**
 
-### C2. Vector cache (`rag/vectorIndex.ts`) ✅
-- Add a `VectorIndex` interface with `load()`, `upsert(itemId, chunks)`, `deleteItem(itemId)` and `search(vec, k)`.
-- `InMemoryVectorIndex`:
-  - stores all vectors in one contiguous `Float32Array` plus a metadata array,
-  - normalizes vectors (stored ones at save time, the query at search time), so search is a dot product,
-  - stays in sync on ingest, PATCH, DELETE and reindex.
-- Log `vector_index.loaded` with the count and ms. Put the measured search time in the README.
+### C3. Vector optimization (`rag/vectorIndex.ts`) 🔄 (base ✅ = old C2; cache ⬜)
+- ✅ `VectorIndex` interface with `load()`, `upsert(itemId, chunks)`, `deleteItem(itemId)` and `search(vec, k)`.
+- ✅ `InMemoryVectorIndex`:
+  - one contiguous `Float32Array` plus metadata, loaded at startup,
+  - vectors normalized when saved and the query at search time, so search is a dot product,
+  - kept in sync on ingest, PATCH, DELETE and reindex.
+- ✅ Log `vector_index.loaded` with the count and ms.
+- ⬜ **Query embedding cache:** LRU (500 entries, 1 h TTL) keyed by `sha256(question)`.
+- Tests: cache hit skips the embed call.
+- _768 dims moved to future work (section 10)._
+
+### C4. Hybrid retrieval ⬜ (~1.5 h)
+- **Keyword index:** a SQLite **FTS5** table `chunks_fts(content, title)`, kept in sync on ingest, PATCH, DELETE and reindex (the VectorIndex sync points). Build it for existing data in the migration.
+- **Hybrid search:**
+  - run the vector search (top 20) and the FTS5 search (top 20, bm25) together,
+  - merge with **RRF** (k = 60) by default,
+  - optional weighted mode: `score = 0.7 * vec_norm + 0.3 * kw_norm` (min-max normalized per list),
+  - recency boost: `+0.02` for the newest of near-duplicate items,
+  - then apply the relevance filter and topK.
+- **Multi-topic split:** "gym and birthday" → split on and / & / commas into at most 3 parts, search each one, merge the results.
+- Config: `RETRIEVAL_MODE=vector|hybrid`, `HYBRID_FUSION=rrf|weighted`.
+- _Reranking moved to future work (section 10)._
+- Debug panel: show each candidate's vector rank, keyword rank and final rank.
+- Note: the relevance filter (A3) uses cosine scores, so keep the vector score on each candidate and apply the window to it, not to the RRF score.
+- Tests: keyword-only match is found; RRF merge order; multi-topic split; FTS stays in sync on PATCH/DELETE.
+
+### C5. Evaluation engine ⬜ (~1.5 h, run after C1–C4)
+- **Dataset:** `eval/datasets/<name>.json`, one entry per question:
+  `{ id, question, category, expectItemIds, expectKeywords, expectNotFound? }`
+  - Categories: `single_fact`, `two_entities`, `list_filter`, `keywords_only`, `changed_fact`, `similar_names`, `not_found`, `follow_up`.
+  - Build 30–40 questions from the 20-person dataset. If the people are real, use fake names or keep the dataset out of git.
+  - Keep the current 13-question `npm run eval` as a quick smoke test.
+- **Retrieval metrics:** Recall@3, Recall@5, MRR, Hit@1 (retriever only, no LLM).
+- **Answer metrics:** keyword accuracy, citation accuracy, not-found correctness.
+- **Speed:** p50/p95 for embed, search, first token and total.
+- **Config sweep:** `npm run eval:full -- --config configs/<name>.json`.
+- **Report:** `eval/results/<date>-<config>.md` with overall and per-category scores, plus the failed questions and what was retrieved.
+- **Compare:** `npm run eval:compare a.md b.md`.
+
+### C6. Results ⬜ (~30 min)
+Run each config and fill in the table for the README:
+
+| Config | Recall@5 | MRR | Answer acc. | Not-found ok | First word p50 | Total p50 |
+|--------|----------|-----|-------------|--------------|----------------|-----------|
+| Vector, old chunking | | | | | | |
+| Vector, smart chunking | | | | | | |
+| Hybrid RRF | | | | | | |
+| Hybrid weighted | | | | | | |
+| **Chosen default** | | | | | | |
+
+Add one paragraph on why the default was chosen, plus per-category notes. For example: "list_filter stays weak: top-k RAG can't aggregate all records; a production fix is structured fields plus SQL filters."
 
 ---
 
@@ -246,7 +345,7 @@ Write the eval score, average time to first word, and time to save a URL in `eva
 - UI: a confirm card with editable fields and **Open in mail app** (`mailto:`), Copy and Cancel buttons. The server never sends anything.
 - Only the user's own message can trigger a draft; instructions inside sources are ignored (A2).
 
-### D3. Embedding modes: Gemini / local / both ⬜
+### D3. Embedding modes: Gemini / local / both ⬜ (needs C1 reindex; interacts with C3 dims and C4 hybrid)
 - Add an `embedder/` folder: FastAPI + sentence-transformers `BAAI/bge-small-en-v1.5` (384-dim, normalized), with `GET /health` and `POST /embed { texts }` returning `{ model, vectors }`.
 - Config: `EMBEDDING_MODE=gemini|local|both` (default `gemini`) and `EMBEDDER_URL`.
 - Add an `embeddings` table (`chunk_id`, `model`, `vector`) so each chunk can have one vector per model. Searches only compare vectors from the same model.
@@ -291,6 +390,7 @@ Write the eval score, average time to first word, and time to save a URL in `eva
 | DELETE | `/items/:id` | **New.** Delete an item and its chunks | B1 |
 | POST | `/query`, `/query/stream` | Sources gain `updatedAt` and `flagged`; filtered suggestions; `debug` field | 0.5, A2–A4, B3 |
 | POST | `/conversations/:id/review` | **New (optional).** Suggested facts | D1 |
+| — | B4 and Phase C add no endpoints (B4 reuses `POST /ingest` and `DELETE /items/:id`); C4 adds rank fields to the `debug` object | B4, C4 |
 
 ## 5. Database changes
 
@@ -298,6 +398,7 @@ Write the eval score, average time to first word, and time to save a URL in `eva
 |-------|--------|------|
 | `items` | `updated_at`, `conversation_id`, `message_id` (unique); `source_type` adds `chat`, `memory` | B1, B2, D1 |
 | `chunks` | `flagged INTEGER DEFAULT 0` | A2 |
+| `chunks_fts` | New FTS5 table (`content`, `title`), kept in sync with `chunks` | C4 |
 | `embeddings` | New: `chunk_id`, `model`, `vector` | D3 |
 
 ## 6. New config (`.env.example`)
@@ -311,6 +412,8 @@ EMBEDDING_MODE=gemini         # gemini | local | both
 EMBEDDER_URL=http://localhost:8000
 REDIS_URL=                    # optional
 MEMORY_REVIEW_ENABLED=true
+RETRIEVAL_MODE=vector        # vector | hybrid
+HYBRID_FUSION=rrf            # rrf | weighted
 ```
 
 ## 7. New tests
@@ -324,7 +427,11 @@ MEMORY_REVIEW_ENABLED=true
 | Fallback | NVIDIA 410 → Gemini answers |
 | Edit/delete | PATCH changes retrieval; URL edit → 409; DELETE removes chunks |
 | Pin | Chat pin saved; second pin → 409 |
-| Chunking | No mixed sections, sentence overlap, tiny chunks merged |
+| Chunking | No mixed sections, sentence overlap, tiny chunks merged, short note stays one chunk |
+| Chat bar | `guessIntent` table; save confirmations not sent as history; Undo deletes the item |
+| Vector cache | Repeat question skips the embed call |
+| Hybrid | Keyword-only match found; RRF merge order; multi-topic split; FTS in sync on PATCH/DELETE |
+| Eval engine | Recall@k / MRR computed on a tiny fixture dataset |
 | Reindex | All items re-embedded; safe to re-run |
 | Embedding modes | Different-model vectors never compared; RRF merge order; local fallback |
 
@@ -362,15 +469,19 @@ MEMORY_REVIEW_ENABLED=true
 - C0 reindex: `npm run reindex` (`services/reindex.service.ts`), embed outside the transaction, one transaction per item, a failed item keeps its old chunks, logs `reindex.item_done` / `reindex.done`; 1 new test; run on a scratch copy only
 - C1 smarter chunking: sections (URL h1-h3 kept as `# heading` lines in the saved text, notes can use them too) never mix, `"<heading>: "` prefix, sentence packing with 2-sentence overlap, tiny chunks (<200) merged into the previous one (may run up to 200 over 2000), `"<title> — <chunk>"` embedded but only the chunk stored. Gate on a scratch copy after `npm run reindex`: eval 13/13 (22 → 20 chunks). **The live DB needs `npm run reindex` after merging** (old and new chunks coexist until then). Old URL items have no heading lines, so they chunk by sentences only until the URL is re-added. 7 chunker tests (overlap test rewritten for sentence overlap), 1 new fetch test
 - C2 vector cache: `VectorIndex` + `InMemoryVectorIndex` (one contiguous Float32Array, normalized, dot product), loaded at start (`vector_index.loaded`), updated on ingest, PATCH, DELETE and in-process reindex; a separate `npm run reindex` process is noticed through SQLite `data_version` and the index reloads (checked 22 → 20 chunks on a scratch server); 2 new tests
+- Doc update: added B4 (chat bar) and replaced Phase C with the "Best RAG" plan (C1–C6). Built tasks renumbered: old C0→C1, old C1→C2, old C2→C3 base
 - _One line per finished task, e.g. "A1 SSRF guard: blocks private IPs, 4 new tests"_
 
 ## 10. Future work (README, if not built)
 - sqlite-vec, then pgvector (`halfvec` + HNSW) or Qdrant for large data
 - Job queue (BullMQ) for ingestion, with status polling
-- Python embedding service at scale; hybrid BM25 + vector search with reranking
+- Python embedding service at scale
+- Structured fields + SQL filters for list/aggregate questions (top-k RAG can't aggregate all records)
 - Classifier-based injection detection
 - Server-side action approval with one-time tokens + audit log
 - Auth and multi-user data isolation
+- Smaller embedding sizes (`EMBEDDING_DIMS` 1536/768, normalized by us, reindex after changing)
+- LLM reranking (`RERANK=llm`: send the top 10 to the fast model, keep the top 5)
 
 ---
 
@@ -380,5 +491,6 @@ MEMORY_REVIEW_ENABLED=true
 - [ ] README updated with every feature that was built
 - [ ] Fresh clone works with only `GEMINI_API_KEY`
 - [ ] No keys in git history
+- [ ] B4, C3 (cache), C4, C5, C6 done or listed as future work
 - [ ] Unbuilt Phase D items listed as future work
 - [ ] Submitted by Thu 19 Nov evening
