@@ -49,6 +49,7 @@ flowchart LR
 - **Chunking:** URLs split by `h1`-`h3` sections (sections never mix); each chunk starts with its heading. Inside a section, sentences are packed to about 2000 characters (~500 tokens) with the last 2 sentences repeated at the next chunk. Pieces under 200 characters merge into their neighbour. Short notes stay one chunk. The embedded text is `"<title> - <chunk>"`; only the chunk is stored and shown.
 - **Vector index:** all vectors live in one normalized `Float32Array` loaded at startup, so search is a dot product. Exact (no approximation), kept in sync on ingest, edit, delete and reindex. Measured: 0.2 ms for 78 chunks, 19 ms for 10,000 chunks (3072 dims, synthetic).
 - **Models:** embeddings are Gemini `gemini-embedding-001` (3072 dims). Answers use NVIDIA `poolside/laguna-xs-2.1` when `NVIDIA_API_KEY` is set, otherwise Gemini `gemini-3.1-flash-lite` (the bigger `gemini-3.8-flash` timed out or returned 503 on the day of the benchmark and the fresh-clone test). If the NVIDIA model is retired (404/410) the call silently retries once on Gemini.
+- **Hybrid search (optional):** `RETRIEVAL_MODE=hybrid` adds SQLite FTS5 keyword search (bm25) next to the vector search and fuses both (`HYBRID_FUSION=rrf` or `weighted`), splits "A and B" questions, and still applies the relevance filter to cosine similarity. It is off by default: the end-to-end comparison against vector-only is still to be run (see `doc/DEVELOPMENT.md`, C6).
 - **Relevance:** keep a chunk if its score is within 0.12 of the best one, or at least 0.6 on its own, so a second relevant note is not hidden. Nothing relevant: the model is told to say it couldn't find it.
 - **Citations:** sources are numbered in the prompt; the answer's `[n]` markers decide which sources are returned. If nothing is cited, the closest source is shown.
 - **Newest fact wins:** every source carries its saved date, and the prompt says to trust the most recent one and mention the change.
@@ -78,7 +79,7 @@ NVIDIA is about 3x faster to the first word, so it stays the default when a key 
 - `DEBUG=true` adds a `debug` object to answers (rewritten question, candidates with scores, timings) and a "Show details" toggle in the UI.
 - `npm run eval` (in `server/`) asks 13 questions (6 single, 2 follow-up chats, 3 not in the notes) and checks keywords, expected source and the not-found phrase. Current score: **13 / 13**. Baseline and notes: [`server/eval/baseline.md`](server/eval/baseline.md).
 - Retrieval eval (`server/`): `DB_PATH=<scratch.db> npm run seed:people` loads 23 fake-person notes into a scratch DB; with a server running on that DB (`DEBUG=true`), `npm run eval:full -- --config configs/vector.json` scores 37 questions in 8 categories (Recall@3/5, MRR, Hit@1, keyword/citation accuracy, p50/p95 speed) into `server/eval/results/`. Vector-only: Recall@5 98%, MRR 0.95, Hit@1 91%, answers 97% correct, not-found 100%. Weak spots: "list everyone who..." questions (Recall@5 85%, answer keywords 75%) and citing every source when an answer uses several. `npm run eval:compare` diffs two reports.
-- `npm test`: 56 server tests (SSRF, injection, relevance, fallback, edit/delete, pin, chunking, vector index, reindex).
+- `npm test`: 63 server tests (SSRF, injection, relevance, fallback, edit/delete, pin, chunking, vector index, reindex).
 
 ## Known limits
 
@@ -92,7 +93,7 @@ NVIDIA is about 3x faster to the first word, so it stays the default when a key 
 
 - Phase D ideas: review popup that proposes lasting facts when a chat closes (D1), email drafts that need confirmation (D2), local/both embedding modes (D3), answer cache with optional Redis (D4)
 - Smaller embedding sizes (1536/768 dims), LLM reranking
-- Hybrid keyword + vector search and a query embedding cache (planned in [`doc/DEVELOPMENT.md`](doc/DEVELOPMENT.md))
+- Prove hybrid search (built, off by default) and add a query embedding cache (planned in [`doc/DEVELOPMENT.md`](doc/DEVELOPMENT.md))
 - sqlite-vec, then pgvector (HNSW) or Qdrant for large data; job queue for ingestion
 - Structured fields + SQL filters for list/aggregate questions
 - Classifier-based injection detection; server-side action approval with audit log; auth and multi-user isolation

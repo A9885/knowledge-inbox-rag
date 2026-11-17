@@ -1,5 +1,5 @@
-import { embedOne } from "../rag/embedder.js";
-import { retrieveTopK, type Candidate, type ScoredChunk } from "../rag/retriever.js";
+import { retrieve } from "../rag/retrieve.js";
+import type { Candidate, ScoredChunk } from "../rag/retriever.js";
 import {
   buildRewriteMessage,
   buildUserMessage,
@@ -64,13 +64,6 @@ async function standalone(question: string, history: Turn[]): Promise<string> {
     log.warn({ err: (e as Error).message }, "rewrite.failed");
     return question;
   }
-}
-
-async function retrieve(question: string, topK: number) {
-  const t0 = Date.now();
-  const vec = Float32Array.from(await embedOne(question));
-  const t1 = Date.now();
-  return { ...retrieveTopK(vec, topK), embedMs: t1 - t0, searchMs: Date.now() - t1 };
 }
 
 type Retrieved = Awaited<ReturnType<typeof retrieve>>;

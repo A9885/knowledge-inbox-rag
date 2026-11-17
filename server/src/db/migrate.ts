@@ -27,4 +27,10 @@ export function migrate(db: Database.Database, schema: string): void {
     db.exec("ALTER TABLE items ADD COLUMN updated_at TEXT; UPDATE items SET updated_at = created_at");
   if (!hasColumn(db, "items", "message_id")) rebuildItems(db, schema); // adds conversation_id, message_id and the 'chat'/'memory' types
   db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_items_message ON items(message_id)"); // NULLs don't collide
+  db.exec(schema); // idempotent: recreates the chunks_fts triggers if the items rebuild dropped them
+  // Existing databases get their keyword index built once, from the chunks they already have.
+  const indexed = (db.prepare("SELECT COUNT(*) AS n FROM chunks_fts").get() as { n: number }).n;
+  if (!indexed)
+    db.exec(`INSERT INTO chunks_fts (content, title, chunk_id)
+             SELECT c.content, i.title, c.id FROM chunks c JOIN items i ON i.id = c.item_id`);
 }

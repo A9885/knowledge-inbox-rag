@@ -31,11 +31,13 @@ export function insertChunks(chunks: NewChunk[]): void {
   }
 }
 
+const META_COLS = `c.id AS chunkId, c.item_id AS itemId, i.title, i.source_type AS type,
+              i.source_url AS sourceUrl, c.content, c.flagged, COALESCE(i.updated_at, i.created_at) AS updatedAt`;
+
 function load(where: string, ...params: string[]): StoredChunk[] {
   const rows = db
     .prepare(
-      `SELECT c.id AS chunkId, c.item_id AS itemId, i.title, i.source_type AS type,
-              i.source_url AS sourceUrl, c.content, c.embedding, c.flagged, COALESCE(i.updated_at, i.created_at) AS updatedAt
+      `SELECT ${META_COLS}, c.embedding
        FROM chunks c JOIN items i ON i.id = c.item_id WHERE i.status = 'ready' ${where} ORDER BY c.item_id, c.chunk_index`,
     )
     .all(...params) as (Omit<StoredChunk, "embedding" | "flagged"> & { embedding: Buffer; flagged: number })[];
@@ -52,3 +54,15 @@ export const loadChunksOfItem = (itemId: string): StoredChunk[] => load("AND c.i
 
 export const deleteChunksOfItem = (itemId: string): void =>
   void db.prepare("DELETE FROM chunks WHERE item_id = ?").run(itemId);
+
+/** Keyword (FTS5 bm25) matches, best first. `match` must already be a safe FTS5 expression (see rag/hybrid.ts). */
+export function searchKeywords(match: string, limit: number): (Omit<StoredChunk, "embedding"> & { bm25: number })[] {
+  if (!match) return [];
+  const rows = db
+    .prepare(
+      `SELECT ${META_COLS}, -f.rank AS bm25 FROM chunks_fts f JOIN chunks c ON c.id = f.chunk_id JOIN items i ON i.id = c.item_id
+       WHERE chunks_fts MATCH ? AND i.status = 'ready' ORDER BY f.rank LIMIT ?`,
+    )
+    .all(match, limit) as (Omit<StoredChunk, "embedding" | "flagged"> & { flagged: number; bm25: number })[];
+  return rows.map((r) => ({ ...r, flagged: r.flagged === 1 }));
+}

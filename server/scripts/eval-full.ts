@@ -11,7 +11,7 @@ const API = process.env.API_URL ?? "http://localhost:4000";
 const EVAL_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "../eval");
 
 type Q = { id: string; question: string; category: string; expectItemIds: string[]; expectKeywords: string[]; expectNotFound?: boolean; conversation?: string };
-type Cfg = { name: string; dataset: string; retrieval: { mode: string; topK: number }; answers: boolean };
+type Cfg = { name: string; dataset: string; retrieval: { mode: "vector" | "hybrid"; fusion?: "rrf" | "weighted"; topK: number }; answers: boolean };
 type Row = {
   q: Q; ranked: string[]; kept: string[]; recall3?: number; recall5?: number; rr?: number; hit1?: number;
   answer?: string; cited?: string[]; kw?: number; cite?: number; nf?: number; embedMs?: number; searchMs?: number; firstMs?: number; totalMs?: number; error?: string;
@@ -22,12 +22,14 @@ const cfgPath = [arg("--config"), resolve(EVAL_DIR, arg("--config") ?? "")].find
 if (!process.argv.includes("--config") || !cfgPath) throw new Error("usage: npm run eval:full -- --config configs/<name>.json");
 if (!process.env.DB_PATH || process.env.DB_PATH.endsWith("data/inbox.db")) throw new Error("Set DB_PATH to the scratch people database (not data/inbox.db).");
 const cfg: Cfg = JSON.parse(readFileSync(cfgPath, "utf8"));
-if (cfg.retrieval.mode !== "vector") throw new Error(`retrieval mode "${cfg.retrieval.mode}" is not built yet (only "vector")`);
+// In-process retrieval follows the config. The API server answers with ITS OWN env: start it with the same
+// RETRIEVAL_MODE / HYBRID_FUSION, or the answer metrics describe a different retriever.
+process.env.RETRIEVAL_MODE = cfg.retrieval.mode;
+process.env.HYBRID_FUSION = cfg.retrieval.fusion ?? "rrf";
 const questions: Q[] = JSON.parse(readFileSync(resolve(EVAL_DIR, `datasets/${cfg.dataset}.json`), "utf8"));
 
 // Imported after the DB_PATH check: these open the database.
-const { embedOne } = await import("../src/rag/embedder.js");
-const { retrieveTopK } = await import("../src/rag/retriever.js");
+const { retrieve } = await import("../src/rag/retrieve.js");
 
 const json = (method: string, path: string, body?: unknown) =>
   fetch(`${API}${path}`, { method, headers: { "Content-Type": "application/json" }, body: body && JSON.stringify(body) });
@@ -83,12 +85,9 @@ try {
       }
     }
     if (searchText && !q.expectNotFound) {
-      const t0 = performance.now();
-      const vec = Float32Array.from(await embedOne(searchText));
-      const t1 = performance.now();
-      const { hits, candidates } = retrieveTopK(vec, cfg.retrieval.topK);
-      row.embedMs = t1 - t0;
-      row.searchMs = performance.now() - t1;
+      const { hits, candidates, embedMs, searchMs } = await retrieve(searchText, cfg.retrieval.topK);
+      row.embedMs = embedMs;
+      row.searchMs = searchMs;
       row.ranked = candidates.map((c) => c.title);
       row.kept = hits.map((h) => h.title);
       row.recall3 = recallAt(row.ranked, q.expectItemIds, 3);
@@ -123,7 +122,7 @@ const line = (label: string, s: typeof overall) => `| ${label} | ${s.n} | ${s.re
 const failed = rows.filter((r) => r.error || r.kw === 0 || r.nf === 0 || (r.cite !== undefined && r.cite < 1) || (r.recall5 !== undefined && r.recall5 < 1));
 const md = [
   `# Eval ${cfg.name} (${date})`,
-  `Dataset \`${cfg.dataset}\` (${questions.length} questions), retrieval \`${cfg.retrieval.mode}\` topK ${cfg.retrieval.topK}, answers ${cfg.answers ? "on" : "off"}.`,
+  `Dataset \`${cfg.dataset}\` (${questions.length} questions), retrieval \`${cfg.retrieval.mode}${cfg.retrieval.mode === "hybrid" ? `/${cfg.retrieval.fusion ?? "rrf"}` : ""}\` topK ${cfg.retrieval.topK}, answers ${cfg.answers ? "on" : "off"}.`,
   `\nRecall/MRR/Hit@1 use the raw ranked list (before the relevance filter). Keyword acc = all expected keywords in the answer. Citation acc = share of expected items cited. Not-found ok = said "couldn't find" with no sources.\n`,
   "| Category | n | Recall@3 | Recall@5 | MRR | Hit@1 | Keyword acc | Citation acc | Not-found ok |",
   "|---|---|---|---|---|---|---|---|---|",

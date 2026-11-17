@@ -282,7 +282,7 @@ Order: C1 reindex → C2 chunking → C3 vector optimization → C4 hybrid retri
 - Tests: cache hit skips the embed call.
 - _768 dims moved to future work (section 10)._
 
-### C4. Hybrid retrieval ⬜ (~1.5 h)
+### C4. Hybrid retrieval ✅ (built behind `RETRIEVAL_MODE=hybrid`; default stays `vector` until the sweep in C6 has been run)
 - **Keyword index:** a SQLite **FTS5** table `chunks_fts(content, title)`, kept in sync on ingest, PATCH, DELETE and reindex (the VectorIndex sync points). Build it for existing data in the migration.
 - **Hybrid search:**
   - run the vector search (top 20) and the FTS5 search (top 20, bm25) together,
@@ -310,16 +310,20 @@ Order: C1 reindex → C2 chunking → C3 vector optimization → C4 hybrid retri
 - **Report:** `eval/results/<date>-<config>.md` with overall and per-category scores, plus the failed questions and what was retrieved.
 - **Compare:** `npm run eval:compare a.md b.md`.
 
-### C6. Results ⬜ (~30 min)
+### C6. Results 🔄 (vector row done; hybrid rows need the sweep re-run after the embedding quota resets)
 Run each config and fill in the table for the README:
 
 | Config | Recall@5 | MRR | Answer acc. | Not-found ok | First word p50 | Total p50 |
 |--------|----------|-----|-------------|--------------|----------------|-----------|
-| Vector, old chunking | | | | | | |
+| Vector, old chunking | not run (old chunker no longer in code) | | | | | |
 | Vector, smart chunking | 98% | 0.95 | 97% | 100% | 937 ms | 2445 ms |
-| Hybrid RRF | | | | | | |
-| Hybrid weighted | | | | | | |
-| **Chosen default** | | | | | | |
+| Hybrid RRF | not run: Gemini embedding quota (429) | | | | | |
+| Hybrid weighted | not run: Gemini embedding quota (429) | | | | | |
+| + 768 dims | future work, not run | | | | | |
+| + rerank | future work, not run | | | | | |
+| **Chosen default** | `vector` (unchanged; hybrid unproven) | | | | | |
+
+**Status.** Only the vector row has real numbers (previous section, Results table). The hybrid runs crashed on 2026-11-18 when Gemini returned 429 (daily embedding quota), so nothing here is invented. One quota-free datum: keyword search alone (FTS5, no embeddings) on the 20 non-follow-up, answerable questions gets Recall@5 100% in every category and MRR 0.88 on list_filter (vector: Recall@5 85%, MRR 0.71), so hybrid is expected to help list_filter; this still has to be confirmed end to end, including answer accuracy, not_found and speed. To finish: start a scratch server per config (`RETRIEVAL_MODE`, `HYBRID_FUSION`, `DEBUG=true`, copy of the people DB), run `npm run eval:full -- --config configs/<name>.json`, then `npm run eval:compare`. Change the default only if hybrid wins on Recall@5, MRR and answer accuracy without hurting not_found or speed.
 
 Add one paragraph on why the default was chosen, plus per-category notes. For example: "list_filter stays weak: top-k RAG can't aggregate all records; a production fix is structured fields plus SQL filters."
 
@@ -398,7 +402,7 @@ Add one paragraph on why the default was chosen, plus per-category notes. For ex
 |-------|--------|------|
 | `items` | `updated_at`, `conversation_id`, `message_id` (unique); `source_type` adds `chat`, `memory` | B1, B2, D1 |
 | `chunks` | `flagged INTEGER DEFAULT 0` | A2 |
-| `chunks_fts` | New FTS5 table (`content`, `title`), kept in sync with `chunks` | C4 |
+| `chunks_fts` | New FTS5 table (`content`, `title`, `chunk_id`), kept in sync by triggers; built for existing data in the migration | C4 |
 | `embeddings` | New: `chunk_id`, `model`, `vector` | D3 |
 
 ## 6. New config (`.env.example`)
@@ -447,7 +451,7 @@ HYBRID_FUSION=rrf            # rrf | weighted
 | Time to first word | 0.3–0.5 s (benchmark); 12.5 s measured on 2026-11-18, provider slow that day | 323 ms median NVIDIA laguna, 1057 ms Gemini 3.1-flash-lite (`server/eval/latency.md`, 5 runs) |
 | Time to save a URL | 6.8 s | |
 | Search time (current data) | about 0.7 ms (7 ms cold in the debug panel: reload from SQLite + cosine, 78 chunks x 3072d) | 0.2 ms (78 chunks x 3072d); 19 ms at 10,000 chunks (synthetic, same dims) |
-| Server tests | 20 | 56 (after C5) |
+| Server tests | 20 | 63 (after C4) |
 | Retrieval quality, vector only (37 fake-people questions, `eval/results/2026-11-18-vector.md`) | n/a | Recall@3 98%, Recall@5 98%, MRR 0.95, Hit@1 91%; keyword acc 97%, citation acc 87%, not-found 100%. Weak: list_filter (Recall@5 85%, Hit@1 50%, keyword acc 75%, citation 33%), two_entities citation (63%) |
 
 ## 9. Change log
@@ -476,6 +480,7 @@ HYBRID_FUSION=rrf            # rrf | weighted
 - Phase E: moved 768 dims and rerank to future work; README rewritten (E1); fresh-clone test (E3) found that with only `GEMINI_API_KEY` the zero-setup answer model `gemini-3.8-flash` hung/503, so the Gemini default and A5 fallback are now `gemini-3.1-flash-lite` (eval 13/13 on a scratch server, Gemini only); after that the fresh clone ingested and answered with citations; secrets scan of all history clean, `.env` and `data/*.db` git-ignored (E4)
 - B4 chat bar: mode select (Ask / Save note / Save URL), `/note` and `/url` commands with a hint, `guessIntent` chips (URL: Save link / Ask; note: Save note), "Saved to inbox" confirmation with View and Undo (Undo = `DELETE /items/:id`), inline red errors, list refreshes. Client only, reuses `POST /ingest`. Confirmations are client state (`ChatNotices`) and never sent anywhere: chat history comes from the server's stored messages. `client/tests/intent.test.ts` runs with `node --test` (no new dependency)
 - C5 evaluation engine: `eval/datasets/people.json` (37 questions, 8 categories) over 23 fake-person notes (`people-notes.json`, seeded into a scratch DB by `npm run seed:people`, which refuses the live DB path); `npm run eval:full -- --config configs/vector.json` (retrieval metrics in-process, answers via API; follow-up turns search with the server's rewritten question, so run the scratch server with `DEBUG=true`), report in `eval/results/<date>-<config>.md` + `.json`, `npm run eval:compare -- a.md b.md`; 3 metric tests. Config shape `{name, dataset, retrieval:{mode,topK}, answers}` is ready for `hybrid` (rejected until C4). `expectItemIds` hold person names / `UPDATE <name>` and match the start of the item title, not database ids. Vector-only result: Recall@5 98%, MRR 0.95, Hit@1 91%, keyword 97%, citation 87%, not-found 100%; weak categories are list_filter and multi-source citations
+- C4 hybrid retrieval (default still `vector`): `chunks_fts` FTS5 table (content, title, chunk_id) kept in sync by SQL triggers on `chunks`/`items` (so ingest, PATCH, DELETE, cascade and reindex all stay in sync) and backfilled once in `db/migrate.ts` (checked on a scratch copy of the live DB: 22 chunks, 22 indexed); `rag/hybrid.ts` (safe FTS5 query: every word quoted and OR-ed, small stop list; multi-topic split; RRF k=60; weighted 0.7/0.3 with min-max per list; recency +0.02 for the newest of near-duplicates, scores scaled to 0..1 first because raw RRF scores are about 0.016) and `rag/retrieve.ts` (vector top 20 + bm25 top 20, relevance filter applied to cosine, `VectorIndex.similarity` scores keyword-only hits). Debug candidates carry vector/keyword/final rank (also shown in the UI). Configs `vector`, `hybrid-rrf`, `hybrid-weighted`; `eval:full` follows the config for in-process retrieval, the server must be started with the same RETRIEVAL_MODE/HYBRID_FUSION. 7 new tests (63 total). **The 3-config answer sweep could not be run**: the Gemini embedding free-tier daily quota (1000 requests) was exhausted (HTTP 429, resets in about 9 h), so the default was not changed
 - _One line per finished task, e.g. "A1 SSRF guard: blocks private IPs, 4 new tests"_
 
 ## 10. Future work (README, if not built)
@@ -497,6 +502,6 @@ HYBRID_FUSION=rrf            # rrf | weighted
 - [x] README updated with every feature that was built (E1; update again after B4/C)
 - [x] Fresh clone works with only `GEMINI_API_KEY`
 - [x] No keys in git history
-- [ ] B4, C3 (cache), C4, C5, C6 done or listed as future work
+- [ ] B4 ✅, C4 ✅, C5 ✅; C3 (cache) and the C6 hybrid sweep still open
 - [ ] Unbuilt Phase D items listed as future work
 - [ ] Submitted by Thu 19 Nov evening

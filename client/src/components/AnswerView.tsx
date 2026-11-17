@@ -29,7 +29,7 @@ function DebugDetails({ debug: d }: { debug: Debug }) {
       <ul className="mt-1 space-y-0.5">
         {d.candidates.map((c, i) => (
           <li key={i} className={c.kept ? "" : "text-slate-400"}>
-            {c.score.toFixed(2)} {c.title} · {c.kept ? "kept" : "dropped"} ({c.reason})
+            {c.score.toFixed(2)} {c.title} · {c.kept ? "kept" : "dropped"} ({c.reason}) · rank: vector {c.vecRank ?? "-"}, keyword {c.kwRank ?? "-"}, final {c.finalRank ?? i + 1}
           </li>
         ))}
       </ul>

@@ -11,6 +11,8 @@ export interface VectorIndex {
   deleteItem(itemId: string): void;
   /** The k most similar chunks, best first. */
   search(vec: Float32Array, k: number): Hit[];
+  /** Cosine similarity of the query to specific chunks (used to score keyword-only matches). */
+  similarity(vec: Float32Array, chunkIds: Set<string>): Map<string, number>;
 }
 
 function normalize(v: ArrayLike<number>, out: Float32Array, at: number): void {
@@ -64,6 +66,22 @@ export class InMemoryVectorIndex implements VectorIndex {
       if (top.length > k) top.pop();
     }
     return top.map(({ i, score }) => ({ ...meta[i], score }));
+  }
+
+  similarity(vec: Float32Array, chunkIds: Set<string>): Map<string, number> {
+    this.ensureFresh();
+    const { dim, data, meta } = this;
+    const out = new Map<string, number>();
+    if (!meta.length || vec.length !== dim) return out;
+    const q = new Float32Array(dim);
+    normalize(vec, q, 0);
+    meta.forEach((m, i) => {
+      if (!chunkIds.has(m.chunkId)) return;
+      let dot = 0;
+      for (let d = 0, o = i * dim; d < dim; d++) dot += q[d] * data[o + d];
+      out.set(m.chunkId, dot);
+    });
+    return out;
   }
 
   private ensureFresh(): void {

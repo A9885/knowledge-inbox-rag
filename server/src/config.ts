@@ -12,6 +12,8 @@ const schema = z.object({
   CHAT_MODEL: z.string().optional(),
   RELEVANCE_WINDOW: z.coerce.number().default(0.12), // keep chunks within this of the best score...
   RELEVANCE_HIGH_SCORE: z.coerce.number().default(0.6), // ...or at least this similar, whatever the best is
+  RETRIEVAL_MODE: z.enum(["vector", "hybrid"]).default("vector"), // hybrid = vector + keyword (FTS5), fused
+  HYBRID_FUSION: z.enum(["rrf", "weighted"]).default("rrf"),
   DEBUG: z.enum(["true", "false"]).default("false").transform((v) => v === "true"),
   LOG_LEVEL: z.string().default("info"),
 });

@@ -41,3 +41,20 @@ CREATE TABLE IF NOT EXISTS messages (
 );
 
 CREATE INDEX IF NOT EXISTS idx_messages_conv ON messages(conversation_id);
+
+-- Keyword index for hybrid search. Kept in sync by triggers (ingest, edit, delete, reindex all go through chunks/items).
+-- ponytail: deleting by the UNINDEXED chunk_id scans the table; fine for thousands of chunks.
+CREATE VIRTUAL TABLE IF NOT EXISTS chunks_fts USING fts5(content, title, chunk_id UNINDEXED);
+
+CREATE TRIGGER IF NOT EXISTS chunks_fts_ai AFTER INSERT ON chunks BEGIN
+  INSERT INTO chunks_fts (content, title, chunk_id)
+  VALUES (new.content, COALESCE((SELECT title FROM items WHERE id = new.item_id), ''), new.id);
+END;
+
+CREATE TRIGGER IF NOT EXISTS chunks_fts_ad AFTER DELETE ON chunks BEGIN
+  DELETE FROM chunks_fts WHERE chunk_id = old.id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS chunks_fts_title AFTER UPDATE OF title ON items BEGIN
+  UPDATE chunks_fts SET title = new.title WHERE chunk_id IN (SELECT id FROM chunks WHERE item_id = new.id);
+END;

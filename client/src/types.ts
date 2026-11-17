@@ -26,7 +26,7 @@ export interface Source {
 
 export interface Debug {
   rewrittenQuestion: string;
-  candidates: { title: string; score: number; kept: boolean; reason: string }[];
+  candidates: { title: string; score: number; kept: boolean; reason: string; vecRank?: number | null; kwRank?: number | null; finalRank?: number }[];
   timings: { embedMs: number; searchMs: number; firstTokenMs: number; totalMs: number };
 }
 
