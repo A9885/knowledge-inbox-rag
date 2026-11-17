@@ -159,8 +159,8 @@ Write the eval score, average time to first word, and time to save a URL in `eva
 - If the embedding fails, return no suggestions; never fail the answer.
 - Test: an unrelated suggestion is removed.
 
-### A5. Model fallback (`lib/llm.ts`) ⬜
-- If NVIDIA returns 404 or 410 (model not found), log `llm.model_unavailable` and retry once with Gemini (`CHAT_MODEL`, the existing config name; fallback model `gemini-3.8-flash`, because `gemini-2.5-flash` returns 404).
+### A5. Model fallback (`lib/llm.ts`) ✅
+- If NVIDIA returns 404 or 410 (model not found), log `llm.model_unavailable` and retry once with Gemini (fixed fallback model `gemini-3.8-flash`, because `gemini-2.5-flash` returns 404; `CHAT_MODEL` sets the primary answer model).
 - Streaming: a failure before the first token switches providers silently; a failure after it sends an SSE `error` event.
 - Test: mocked NVIDIA 410 → the answer comes from mocked Gemini.
 
@@ -336,11 +336,11 @@ MEMORY_REVIEW_ENABLED=true
 
 | Metric | Before | After |
 |--------|--------|-------|
-| Eval score (pass / total) | 13 / 13 (baseline) | |
+| Eval score (pass / total) | 13 / 13 (baseline) | 13 / 13 after A5 |
 | Time to first word | 0.3–0.5 s (benchmark); 12.5 s measured on 2026-11-18, provider slow that day | |
 | Time to save a URL | 6.8 s | |
 | Search time (current data) | | |
-| Server tests | 20 | 32 (after A1) |
+| Server tests | 20 | 42 (after A5) |
 
 ## 9. Change log
 
@@ -355,6 +355,7 @@ MEMORY_REVIEW_ENABLED=true
 - A2 prompt-injection safety: `<source>` tags (id, type, title, saved date), tag stripping, system-prompt rule, `chunks.flagged` (ALTER TABLE migration, data kept), `lib/injection.ts`, ⚠ badge, `rel="noopener noreferrer"`; 2 new tests. Also added a Goa example to the rewrite prompt: the model had started dropping the topic from "and where is the hotel?" (eval 12/13)
 - A3 relevance filter: keep `score >= best - RELEVANCE_WINDOW` or `>= RELEVANCE_HIGH_SCORE` (both in config); debug reason `high_score`; 2 new tests
 - A4 suggestion filter (`services/suggestions.ts`): one batched embedding, keep best-chunk score >= 0.5, any failure → no suggestions; 2 new tests, 2 existing assertions updated (mock suggestions made realistic)
+- A5 model fallback: NVIDIA 404/410 → logs `llm.model_unavailable`, retries once on Gemini `gemini-3.8-flash`; streams switch silently only before the first token; 4 new tests
 - _One line per finished task, e.g. "A1 SSRF guard: blocks private IPs, 4 new tests"_
 
 ## 10. Future work (README, if not built)
@@ -368,7 +369,7 @@ MEMORY_REVIEW_ENABLED=true
 ---
 
 ## Final checklist
-- [ ] Phase 0 + A done, tests pass, committed
+- [x] Phase 0 + A done, tests pass, committed
 - [ ] Eval score ≥ baseline after each phase
 - [ ] README updated with every feature that was built
 - [ ] Fresh clone works with only `GEMINI_API_KEY`

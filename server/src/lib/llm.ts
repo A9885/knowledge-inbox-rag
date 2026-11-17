@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import { config } from "../config.js";
+import { log } from "./logger.js";
 
 // The only file that talks to the LLM provider (Gemini, via its OpenAI-compatible API).
 // Embeddings always use Gemini; chat uses NVIDIA NIM when NVIDIA_API_KEY is set.
@@ -29,33 +30,65 @@ export async function embed(texts: string[]): Promise<number[][]> {
   return out;
 }
 
-export async function chat(system: string, user: string): Promise<string> {
-  const res = await chatApi().chat.completions.create({
-    model: chatModel(),
-    temperature: 0,
-    max_tokens: MAX_TOKENS,
-    messages: [
-      { role: "system", content: system },
-      { role: "user", content: user },
-    ],
-  });
+const FALLBACK_MODEL = "gemini-3.8-flash"; // used when the NVIDIA model has been retired
+
+type Target = { client: OpenAI; model: string };
+const primary = (): Target => ({ client: chatApi(), model: chatModel() });
+const fallback = (): Target | null => (config.NVIDIA_API_KEY ? { client: api(), model: FALLBACK_MODEL } : null);
+
+/** 404/410 from the provider means the model no longer exists. */
+const modelGone = (e: unknown) => [404, 410].includes((e as { status?: number })?.status ?? 0);
+const switching = (from: Target, e: unknown) =>
+  log.warn({ model: from.model, status: (e as { status?: number }).status, fallback: FALLBACK_MODEL }, "llm.model_unavailable");
+
+const messages = (system: string, user: string) => [
+  { role: "system" as const, content: system },
+  { role: "user" as const, content: user },
+];
+
+async function complete(t: Target, system: string, user: string): Promise<string> {
+  const res = await t.client.chat.completions.create({ model: t.model, temperature: 0, max_tokens: MAX_TOKENS, messages: messages(system, user) });
   return res.choices[0]?.message?.content?.trim() ?? "";
 }
 
-/** Yields answer text as the model writes it (reasoning tokens, if any, are not included). */
-export async function* chatStream(system: string, user: string): AsyncGenerator<string> {
-  const stream = await chatApi().chat.completions.create({
-    model: chatModel(),
+async function* streamFrom(t: Target, system: string, user: string): AsyncGenerator<string> {
+  const stream = await t.client.chat.completions.create({
+    model: t.model,
     temperature: 0,
     max_tokens: MAX_TOKENS,
     stream: true,
-    messages: [
-      { role: "system", content: system },
-      { role: "user", content: user },
-    ],
+    messages: messages(system, user),
   });
   for await (const part of stream) {
     const delta = part.choices[0]?.delta?.content;
     if (delta) yield delta;
+  }
+}
+
+export async function chat(system: string, user: string): Promise<string> {
+  try {
+    return await complete(primary(), system, user);
+  } catch (e) {
+    const fb = fallback();
+    if (!fb || !modelGone(e)) throw e;
+    switching(primary(), e);
+    return complete(fb, system, user);
+  }
+}
+
+/** Yields answer text as the model writes it (reasoning tokens, if any, are not included).
+ *  A "model gone" error before the first token switches to the fallback; after it, the error propagates. */
+export async function* chatStream(system: string, user: string): AsyncGenerator<string> {
+  let started = false;
+  try {
+    for await (const t of streamFrom(primary(), system, user)) {
+      started = true;
+      yield t;
+    }
+  } catch (e) {
+    const fb = fallback();
+    if (started || !fb || !modelGone(e)) throw e;
+    switching(primary(), e);
+    yield* streamFrom(fb, system, user);
   }
 }
