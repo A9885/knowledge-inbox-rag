@@ -1,0 +1,100 @@
+import { useEffect, useState } from "react";
+import * as api from "../api/client";
+import { ErrorBanner } from "./ErrorBanner";
+
+interface Props {
+  itemId: string;
+  startEditing?: boolean;
+  onClose: () => void;
+  onEdit: (id: string, content: string) => Promise<void>;
+  onDelete: (id: string) => Promise<void>;
+}
+
+/** Full text of one saved item, with edit and delete. URLs are read-only (re-add them instead). */
+export function ItemPanel({ itemId, startEditing = false, onClose, onEdit, onDelete }: Props) {
+  const [item, setItem] = useState<Awaited<ReturnType<typeof api.getItem>> | null>(null);
+  const [draft, setDraft] = useState<string | null>(null); // non-null = editing
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    api
+      .getItem(itemId)
+      .then((i) => {
+        setItem(i);
+        if (startEditing && i.type !== "url") setDraft(i.content);
+      })
+      .catch((e) => setError((e as Error).message));
+  }, [itemId, startEditing]);
+
+  const run = async (fn: () => Promise<void>) => {
+    setBusy(true);
+    setError(null);
+    try {
+      await fn();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  const save = () =>
+    run(async () => {
+      await onEdit(itemId, draft ?? "");
+      setItem(await api.getItem(itemId));
+      setDraft(null);
+    });
+  const remove = () =>
+    run(async () => {
+      if (!window.confirm("Delete this item and its searchable text?")) return;
+      await onDelete(itemId);
+      onClose();
+    });
+
+  return (
+    <div role="dialog" aria-modal="true" aria-label="Saved item" className="fixed inset-0 z-10 flex items-center justify-center bg-black/40 p-4">
+      <div className="max-h-[85vh] w-full max-w-xl space-y-3 overflow-y-auto rounded-lg bg-white p-4 text-sm shadow-lg">
+        <div className="flex justify-between gap-2">
+          <h3 className="font-semibold">{item?.title ?? "Loading…"}</h3>
+          <button onClick={onClose} aria-label="Close" className="text-slate-500 hover:text-slate-900">
+            ✕
+          </button>
+        </div>
+        <ErrorBanner message={error} />
+        {item && draft !== null ? (
+          <textarea value={draft} onChange={(e) => setDraft(e.target.value)} rows={8} className="w-full rounded border border-slate-300 p-2" />
+        ) : (
+          item && <p className="whitespace-pre-wrap text-slate-700">{item.content}</p>
+        )}
+        {item?.sourceUrl && (
+          <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline">
+            {item.sourceUrl} ↗
+          </a>
+        )}
+        {item && (
+          <div className="flex gap-2">
+            {draft !== null ? (
+              <>
+                <button disabled={busy || !draft.trim()} onClick={save} className="rounded bg-blue-600 px-3 py-1 text-white disabled:opacity-50">
+                  {busy ? "Saving…" : "Save"}
+                </button>
+                <button disabled={busy} onClick={() => setDraft(null)} className="rounded border px-3 py-1">
+                  Cancel
+                </button>
+              </>
+            ) : (
+              item.type !== "url" && (
+                <button onClick={() => setDraft(item.content)} className="rounded border px-3 py-1">
+                  Edit
+                </button>
+              )
+            )}
+            <button disabled={busy} onClick={remove} className="rounded border border-red-300 px-3 py-1 text-red-700">
+              Delete
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

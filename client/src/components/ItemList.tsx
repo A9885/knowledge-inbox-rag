@@ -13,7 +13,16 @@ function timeAgo(iso: string) {
   return "just now";
 }
 
-export function ItemList({ items, loading }: { items: Item[]; loading: boolean }) {
+export const ICONS: Record<Item["type"], string> = { note: "📝", url: "🔗", chat: "💬", memory: "🧠" };
+
+interface Props {
+  items: Item[];
+  loading: boolean;
+  onOpen: (id: string, edit: boolean) => void;
+  onDelete: (id: string) => Promise<void>;
+}
+
+export function ItemList({ items, loading, onOpen, onDelete }: Props) {
   return (
     <section>
       <h2 className="mb-2 font-semibold">Saved items ({items.length})</h2>
@@ -27,11 +36,27 @@ export function ItemList({ items, loading }: { items: Item[]; loading: boolean }
             <li key={i.id} className="rounded border border-slate-200 bg-white p-2 text-sm">
               <div className="flex justify-between gap-2">
                 <span className="font-medium">
-                  {i.type === "note" ? "📝" : "🔗"} {i.title}
+                  {ICONS[i.type]} {i.title}
                 </span>
                 <span className="shrink-0 text-xs text-slate-500">{timeAgo(i.createdAt)}</span>
               </div>
               <p className="mt-1 line-clamp-2 text-slate-600">{i.preview}</p>
+              <div className="mt-1 flex gap-3 text-xs">
+                <button onClick={() => onOpen(i.id, false)} className="text-blue-600 hover:underline">
+                  View
+                </button>
+                {i.type !== "url" && (
+                  <button onClick={() => onOpen(i.id, true)} className="text-blue-600 hover:underline">
+                    Edit
+                  </button>
+                )}
+                <button
+                  onClick={() => window.confirm("Delete this item and its searchable text?") && void onDelete(i.id)}
+                  className="text-red-600 hover:underline"
+                >
+                  Delete
+                </button>
+              </div>
             </li>
           ))}
         </ul>

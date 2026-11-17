@@ -1,4 +1,4 @@
-import type { Source } from "../types";
+import type { Debug, Source } from "../types";
 
 // "https://en.wikipedia.org/wiki/Goa" → "en.wikipedia.org/wiki/Goa"
 const shortLink = (u: string) => {
@@ -17,16 +17,39 @@ const jump = (id: string) => {
   el?.scrollIntoView({ behavior: "smooth", block: "center" });
 };
 
+function DebugDetails({ debug: d }: { debug: Debug }) {
+  const t = d.timings;
+  return (
+    <details className="rounded border border-slate-200 bg-slate-50 p-2 text-xs text-slate-600">
+      <summary className="cursor-pointer font-semibold">Show details</summary>
+      <p className="mt-1">Searched for: {d.rewrittenQuestion}</p>
+      <p>
+        embed {t.embedMs}ms · search {t.searchMs}ms · first word {t.firstTokenMs}ms · total {t.totalMs}ms
+      </p>
+      <ul className="mt-1 space-y-0.5">
+        {d.candidates.map((c, i) => (
+          <li key={i} className={c.kept ? "" : "text-slate-400"}>
+            {c.score.toFixed(2)} {c.title} · {c.kept ? "kept" : "dropped"} ({c.reason}) · rank: vector {c.vecRank ?? "-"}, keyword {c.kwRank ?? "-"}, final {c.finalRank ?? i + 1}
+          </li>
+        ))}
+      </ul>
+    </details>
+  );
+}
+
 interface Props {
   idPrefix: string; // keeps source anchors unique when several answers are on one page
   expandSources?: boolean;
   answer: string;
   sources: Source[];
   suggestions: string[];
+  debug?: Debug;
+  editedItems: Set<string>;
+  onOpenItem: (id: string) => void;
   onSuggest: (q: string) => void;
 }
 
-export function AnswerView({ idPrefix, expandSources = false, answer, sources, suggestions, onSuggest }: Props) {
+export function AnswerView({ idPrefix, expandSources = false, answer, sources, suggestions, debug, editedItems, onOpenItem, onSuggest }: Props) {
   const uncited = sources.length > 0 && !sources[0].cited;
   return (
     <div className="space-y-4">
@@ -57,6 +80,7 @@ export function AnswerView({ idPrefix, expandSources = false, answer, sources, s
           ))}
         </div>
       )}
+      {debug && <DebugDetails debug={debug} />}
       {sources.length > 0 && (
         <details open={expandSources}>
           <summary className="mb-1 cursor-pointer text-sm font-semibold">Sources ({sources.length})</summary>
@@ -65,16 +89,18 @@ export function AnswerView({ idPrefix, expandSources = false, answer, sources, s
             {sources.map((s) => (
               <li key={s.chunkId} id={`${idPrefix}-source-${s.ref}`} className="rounded border border-slate-200 bg-white p-2 text-sm">
                 <div className="flex justify-between gap-2">
-                  <span className="font-medium">
+                  <button onClick={() => onOpenItem(s.itemId)} className="text-left font-medium hover:underline">
                     [{s.ref}] {s.title}
-                  </span>
+                  </button>
                   <span className="shrink-0 text-xs text-slate-500">{s.score.toFixed(2)}</span>
                 </div>
                 {s.sourceUrl && (
-                  <a href={s.sourceUrl} target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline">
+                  <a href={s.sourceUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline">
                     {shortLink(s.sourceUrl)} ↗
                   </a>
                 )}
+                {editedItems.has(s.itemId) && <p className="mt-1 text-xs font-medium text-amber-700">⚠ note edited since</p>}
+                {s.flagged && <p className="mt-1 text-xs font-medium text-amber-700">⚠ contains instruction-like text</p>}
                 <p className="mt-1 text-slate-600">{s.snippet}</p>
               </li>
             ))}

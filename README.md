@@ -1,54 +1,105 @@
 # AI Knowledge Inbox
 
-Save notes and URLs, then ask questions answered by a RAG pipeline with cited sources.
+Save notes and links, then ask questions. Answers are built only from what you saved, with `[n]` citations pointing at the sources.
 
 ## Quick start
-1. `cd server && cp .env.example .env` → add `GEMINI_API_KEY`
-2. `npm install && npm run dev`   (API on :4000)
-3. `cd ../client && npm install && npm run dev`   (UI on :5173)
-4. Tests: `cd server && npm test`
+
+Needs Node 24 and a Gemini API key.
+
+```bash
+npm run setup          # installs everything, creates server/.env from .env.example
+# put GEMINI_API_KEY in server/.env
+npm run dev            # API on :4000, UI on :5173
+```
+
+Optional: `cd server && npm run seed` loads sample notes and URLs; `npm test` runs the server tests; `npm run eval` runs the 13-question quality check.
+`GEMINI_API_KEY` alone is enough. `NVIDIA_API_KEY` is optional and makes answers faster (see "Models").
+
+### Free-tier quota
+
+The free Gemini tier allows about 1000 embedding requests a day. Saving a note or URL costs one request per batch of up to 100 chunks, and every question costs one (repeated questions within an hour are served from a small in-memory cache). When the limit is hit, saving and asking fail with a clear "Gemini quota reached" message (`429 PROVIDER_QUOTA`) until the quota resets, or you enable billing, which lifts the limit. The evaluation scripts cache question embeddings in `server/eval/.cache/`, so re-runs cost nothing; `npm run eval:full -- --config ... --retrieval-only` skips LLM answers entirely.
 
 ## Architecture
+
+```mermaid
+flowchart LR
+  UI[React UI] -->|/ingest| R[routes - zod]
+  UI -->|/query/stream| R
+  R --> IS[ingest.service]
+  R --> QS[query.service]
+  IS -->|url| F[fetchUrl - SSRF guard]
+  IS --> C[chunker] --> E[embedder - Gemini]
+  IS --> DB[(SQLite)]
+  QS --> E
+  QS --> VI[VectorIndex - in memory] --> RT[retriever - relevance filter]
+  RT --> P[prompt - source tags] --> L[llm - NVIDIA or Gemini]
+  DB -. loads at start .-> VI
 ```
-POST /ingest ─ routes (zod) ─ ingest.service ─ fetchUrl? → chunker → embedder → db (tx)
-POST /query  ─ routes (zod) ─ query.service  ─ embedder → retriever → prompt → llm → citation map
-GET  /items  ─ routes ─ items.repository
-```
-- `routes/` thin: validate, call service, respond.
-- `services/` orchestrate; never touch `req`/`res`.
-- `rag/` chunking, embeddings, cosine retrieval, prompt.
-- `db/` the only place with SQL. `lib/llm.ts` the only place that calls Gemini.
+
+- `routes/` are thin: validate, call a service, respond. `services/` orchestrate and never touch `req`/`res`.
+- `db/` is the only place with SQL. `lib/llm.ts` and `rag/embedder.ts` are the only places that call models.
+- Errors always look like `{ error: { code, message, requestId } }`. Logs are structured pino events with a request id.
+
+## Features
+
+- Save notes and URLs; edit and delete notes; pin one of your own chat messages to the inbox
+- Streaming answers with `[n]` citations, dated sources, and up to 3 follow-up suggestions (only ones the notes can answer)
+- Chat tabs with memory; follow-up questions are rewritten so they stand alone ("and where is the hotel?")
+- "Note edited since" warning on old answers, source preview panel
+- Details panel (`DEBUG=true`): rewritten question, every candidate with its score and why it was kept, timings
 
 ## Design decisions
-- **Chunking:** paragraph-aware packing to ~2000 chars (~500 tokens) with ~300 chars (15%) overlap.
-  Paragraphs keep one idea together (better embeddings than fixed cuts); overlap stops answers
-  being lost at a boundary; ~500 tokens is specific enough to retrieve precisely yet keeps context;
-  short notes stay a single chunk. Oversized paragraphs split on sentence boundaries.
-- **Vector store:** SQLite + in-memory cosine. Zero setup, exact results, fine for small data.
-- **Citations:** passages are numbered in the prompt; `[n]` markers are parsed from the answer and
-  only those passages are returned. If the model cites nothing, all retrieved passages come back
-  with `cited: false`.
-- **No-match guard:** if nothing scores ≥ 0.25, the LLM is skipped and the fallback answer returned.
-- **Sync ingestion:** fine for one user; `items.status` is ready for async processing later.
 
-## Tradeoffs & what breaks at scale
-- Brute-force search is O(n) per query → slow beyond ~50k chunks.
-- All embeddings are loaded into memory on every query.
-- SQLite allows one writer at a time.
-- Ingest blocks the request during fetch and embedding.
-- No dedup, rate limiting, or retries.
-- Fixed chunk size is not tuned per content type.
-- **No SSRF protection:** URL fetch can reach private IP ranges. Must be blocked in production.
+- **Chunking:** URLs split by `h1`-`h3` sections (sections never mix); each chunk starts with its heading. Inside a section, sentences are packed to about 2000 characters (~500 tokens) with the last 2 sentences repeated at the next chunk. Pieces under 200 characters merge into their neighbour. Short notes stay one chunk. The embedded text is `"<title> - <chunk>"`; only the chunk is stored and shown.
+- **Vector index:** all vectors live in one normalized `Float32Array` loaded at startup, so search is a dot product. Exact (no approximation), kept in sync on ingest, edit, delete and reindex. Measured: 0.2 ms for 78 chunks, 19 ms for 10,000 chunks (3072 dims, synthetic).
+- **Models:** embeddings are Gemini `gemini-embedding-001` (3072 dims). Answers use NVIDIA `poolside/laguna-xs-2.1` when `NVIDIA_API_KEY` is set, otherwise Gemini `gemini-3.1-flash-lite` (the bigger `gemini-3.8-flash` timed out or returned 503 on the day of the benchmark and the fresh-clone test). If the NVIDIA model is retired (404/410) the call silently retries once on Gemini.
+- **Hybrid search (default):** vector search plus SQLite FTS5 keyword search (bm25), fused with a weighted score (0.7 vector, 0.3 keyword, min-max per list). `HYBRID_FUSION=rrf` and `RETRIEVAL_MODE=vector` are available. On the 37-question people dataset it raised MRR from 0.94 to 0.98 and Hit@1 from 90% to 97% with no category worse and answers unchanged; RRF was dropped because it ranked the second entity of two-entity questions lower. "A and B" questions are also split into sub-searches. The relevance filter still uses cosine similarity.
+- **Relevance:** keep a chunk if its score is within 0.12 of the best one, or at least 0.6 on its own, so a second relevant note is not hidden. Nothing relevant: the model is told to say it couldn't find it.
+- **Citations:** sources are numbered in the prompt; the answer's `[n]` markers decide which sources are returned. If nothing is cited, the closest source is shown.
+- **Newest fact wins:** every source carries its saved date, and the prompt says to trust the most recent one and mention the change.
 
-## Production changes
-- pgvector / Qdrant with HNSW index
-- Job queue (BullMQ) for ingestion + status polling/SSE
-- Retries with backoff, rate limiting, content-hash dedup
-- Hybrid search (BM25 + vectors) + reranker
-- SSRF protection on URL fetch
-- Auth + per-user data isolation
-- Retrieval eval set + tracing (latency, token cost)
+### Answer-model speed
 
-## What I'd do with more time
-Streaming answers, delete/edit items, PDF upload, better HTML cleanup.
-# index
+Real prompt (system prompt + 3 seed chunks), streaming, 5 runs each, 2026-11-18. Details in [`server/eval/latency.md`](server/eval/latency.md).
+
+| Model | First token min / median / max (ms) | Total median (ms) |
+|-------|-------------------------------------|-------------------|
+| NVIDIA `poolside/laguna-xs-2.1` (default with NVIDIA key) | 306 / 323 / 582 | 908 |
+| Gemini `gemini-3.1-flash-lite` (zero-setup default, fallback) | 871 / 1057 / 1189 | 1175 |
+| Gemini `gemini-3.5-flash-lite` | 700 / 1548 / 2747 | 1747 |
+| Gemini `gemini-3.8-flash` | no answer: timeouts and a 503 that day | n/a |
+
+NVIDIA is about 3x faster to the first word, so it stays the default when a key is present. The Gemini fast model was overloaded during the run, so its speed is unknown.
+
+## Security
+
+- **SSRF:** before fetching, the hostname is resolved and rejected if any address is loopback, private, link-local or `localhost`; only `http`/`https`; redirects are followed manually (max 3) and each target is re-checked. Blocked URLs return `422 URL_NOT_ALLOWED`.
+- **Prompt injection:** saved text is untrusted. Each chunk is wrapped in `<source ...>` tags (any `<source` strings inside are stripped), and the system prompt says sources are data, never instructions. Instruction-like text ("ignore previous instructions", ...) is flagged at ingest and shown with a warning badge; it is not blocked. The answer model has no tools, and AI answers are never saved as knowledge.
+- **UI:** everything is rendered as text; no `dangerouslySetInnerHTML`; external links use `rel="noopener noreferrer"`.
+- Keys live in `server/.env` (git-ignored). `.env.example` lists every setting.
+
+## Debugging and eval
+
+- `DEBUG=true` adds a `debug` object to answers (rewritten question, candidates with scores, timings) and a "Show details" toggle in the UI.
+- `npm run eval` (in `server/`) asks 13 questions (6 single, 2 follow-up chats, 3 not in the notes) and checks keywords, expected source and the not-found phrase. Current score: **13 / 13**. Baseline and notes: [`server/eval/baseline.md`](server/eval/baseline.md).
+- Retrieval eval (`server/`): `DB_PATH=<scratch.db> npm run seed:people` loads 23 fake-person notes into a scratch DB; with a server running on that DB (`DEBUG=true`), `npm run eval:full -- --config configs/vector.json` scores 37 questions in 8 categories (Recall@3/5, MRR, Hit@1, keyword/citation accuracy, p50/p95 speed) into `server/eval/results/`. Vector-only: Recall@5 98%, MRR 0.94, Hit@1 90%; hybrid-weighted (default): 99%, 0.98, 97%; answers 97% correct and not-found 100% in both. Weak spots: "list everyone who..." questions (Recall@5 85%, answer keywords 75%) and citing every source when an answer uses several. `npm run eval:compare` diffs two reports.
+- `npm test`: 77 server tests (SSRF, injection, relevance, fallback, edit/delete, pin, chunking, vector index, reindex).
+
+## Known limits
+
+- **DNS rebinding:** the SSRF check resolves the name, then the fetch resolves it again; a hostile DNS server could answer differently the second time. Fix: connect to the checked IP.
+- **Existing databases need `npm run reindex` once** (in `server/`) after upgrading, so old chunks are replaced by the new chunking. Old URL items also lack heading lines until re-added.
+- Small answer models write weaker follow-up suggestions than large ones, and sometimes skip them.
+- Top-k retrieval can't answer "list all X" questions over many records.
+- One user, one process: SQLite single writer, synchronous ingest, no auth, no rate limiting.
+
+## Future work
+
+- Phase D ideas: review popup that proposes lasting facts when a chat closes (D1), email drafts that need confirmation (D2), local/both embedding modes (D3), answer cache with optional Redis (D4)
+- Smaller embedding sizes (1536/768 dims), LLM reranking
+- Planned items are tracked in [`doc/DEVELOPMENT.md`](doc/DEVELOPMENT.md)
+- sqlite-vec, then pgvector (HNSW) or Qdrant for large data; job queue for ingestion
+- Structured fields + SQL filters for list/aggregate questions
+- Classifier-based injection detection; server-side action approval with audit log; auth and multi-user isolation
+
+The full plan, rules and change log are in [`doc/DEVELOPMENT.md`](doc/DEVELOPMENT.md).

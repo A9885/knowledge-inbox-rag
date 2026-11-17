@@ -67,12 +67,9 @@ export function useChats() {
         setActiveId(id);
       }
       const r = await api.askStream(question, id, (t) => setDraft((d) => d && { ...d, text: d.text + t }));
-      const key = crypto.randomUUID();
-      setMessages((m) => [
-        ...m,
-        { id: `${key}-q`, role: "user", content: question, sources: [], suggestions: [] },
-        { id: `${key}-a`, role: "assistant", content: r.answer, sources: r.sources, suggestions: r.suggestions },
-      ]);
+      const saved = await api.getMessages(id); // server ids, needed to pin a message
+      const last = saved.length - 1;
+      setMessages(saved.map((m, k) => (k === last ? { ...m, debug: r.debug } : m)));
       setTabs(await api.listConversations()); // picks up the new tab / title / order
     } catch (e) {
       setError(msg(e));

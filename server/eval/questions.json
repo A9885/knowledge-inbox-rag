@@ -1,0 +1,15 @@
+[
+  { "question": "When is my mom's birthday?", "expectKeywords": ["March 14"], "expectSource": "Mom's birthday" },
+  { "question": "Who is my landlord and when is rent due?", "expectKeywords": ["Sharma", "5th"], "expectSource": "Wifi password" },
+  { "question": "What is on my gym plan for Wednesday?", "expectKeywords": ["legs"], "expectSource": "Gym plan" },
+  { "question": "Which books do I want to read next?", "expectKeywords": ["Atomic Habits", "Deep Work"], "expectSource": "Book ideas" },
+  { "question": "What is retrieval-augmented generation?", "expectKeywords": ["retriev"], "expectSource": "Retrieval-augmented generation" },
+  { "question": "What is Hyderabadi biryani?", "expectKeywords": ["rice"], "expectSource": "Hyderabadi biryani" },
+  { "question": "When is my meeting with Ravi?", "expectKeywords": ["Friday", "3"], "expectSource": "Meeting with Ravi", "conversation": "ravi" },
+  { "question": "and what is it about?", "expectKeywords": ["budget"], "expectSource": "Meeting with Ravi", "conversation": "ravi" },
+  { "question": "When are my flights to Goa?", "expectKeywords": ["Dec", "20"], "expectSource": "Trip to Goa", "conversation": "goa" },
+  { "question": "and where is the hotel?", "expectKeywords": ["Baga"], "expectSource": "Trip to Goa", "conversation": "goa" },
+  { "question": "What is the capital of Australia?", "expectNotFound": true },
+  { "question": "What is my passport number?", "expectNotFound": true },
+  { "question": "What did I decide about the car insurance renewal?", "expectNotFound": true }
+]

@@ -1,5 +1,5 @@
-import { embedOne } from "../rag/embedder.js";
-import { retrieveTopK, type ScoredChunk } from "../rag/retriever.js";
+import { retrieve } from "../rag/retrieve.js";
+import type { Candidate, ScoredChunk } from "../rag/retriever.js";
 import {
   buildRewriteMessage,
   buildUserMessage,
@@ -11,8 +11,10 @@ import {
   visibleEnd,
 } from "../rag/prompt.js";
 import { chat, chatStream } from "../lib/llm.js";
-import { AppError } from "../lib/errors.js";
+import { config } from "../config.js";
+import { AppError, isQuota, quotaError } from "../lib/errors.js";
 import { log } from "../lib/logger.js";
+import { relevantSuggestions } from "./suggestions.js";
 import type { Turn } from "./conversation.service.js";
 
 const SNIPPET_CHARS = 300;
@@ -26,10 +28,17 @@ const toSource = (c: ScoredChunk, ref: number, cited: boolean) => ({
   sourceUrl: c.sourceUrl,
   snippet: c.content.slice(0, SNIPPET_CHARS),
   score: Math.round(c.score * 100) / 100,
+  flagged: c.flagged,
+  updatedAt: c.updatedAt,
   cited,
 });
 
-type Result = { answer: string; sources: ReturnType<typeof toSource>[]; suggestions: string[] };
+type Debug = {
+  rewrittenQuestion: string;
+  candidates: Candidate[];
+  timings: { embedMs: number; searchMs: number; firstTokenMs: number; totalMs: number };
+};
+type Result = { answer: string; sources: ReturnType<typeof toSource>[]; suggestions: string[]; debug?: Debug };
 
 /** Turns raw model output into the answer, its cited sources and follow-up suggestions. */
 function finalize(raw: string, hits: ScoredChunk[]): Result {
@@ -57,11 +66,28 @@ async function standalone(question: string, history: Turn[]): Promise<string> {
   }
 }
 
-async function retrieve(question: string, topK: number) {
-  return retrieveTopK(Float32Array.from(await embedOne(question)), topK);
-}
+type Retrieved = Awaited<ReturnType<typeof retrieve>>;
+
+/** Only populated when DEBUG=true. firstTokenMs is 0 for non-streamed answers. */
+const withDebug = (r: Result, q: string, got: Retrieved, t0: number, firstTokenAt = t0): Result =>
+  config.DEBUG
+    ? {
+        ...r,
+        debug: {
+          rewrittenQuestion: q,
+          candidates: got.candidates,
+          timings: {
+            embedMs: got.embedMs,
+            searchMs: got.searchMs,
+            firstTokenMs: firstTokenAt - t0,
+            totalMs: Date.now() - t0,
+          },
+        },
+      }
+    : r;
 
 const llmFailed = (e: unknown) => {
+  if (isQuota(e)) return quotaError("chat", e);
   log.error({ err: (e as Error).message }, "llm.failed");
   return new AppError("LLM_FAILED", 502, "Language model provider failed", e);
 };
@@ -75,7 +101,8 @@ const logDone = (question: string, hits: ScoredChunk[], t0: number, streamed: bo
 export async function answerQuestion(question: string, topK: number, history: Turn[] = []): Promise<Result> {
   const t0 = Date.now();
   question = await standalone(question, history);
-  const hits = await retrieve(question, topK);
+  const got = await retrieve(question, topK);
+  const hits = got.hits;
   let result: Result = { answer: FALLBACK, sources: [], suggestions: [] };
   if (hits.length) {
     try {
@@ -84,8 +111,9 @@ export async function answerQuestion(question: string, topK: number, history: Tu
       throw llmFailed(e);
     }
   }
+  result.suggestions = await relevantSuggestions(result.suggestions); // outside the try: it never fails the answer
   logDone(question, hits, t0, false);
-  return result;
+  return withDebug(result, question, got, t0);
 }
 
 /** Same as answerQuestion, but calls onToken with answer text as it is generated. */
@@ -97,17 +125,20 @@ export async function streamAnswer(
 ): Promise<Result> {
   const t0 = Date.now();
   question = await standalone(question, history);
-  const hits = await retrieve(question, topK);
+  const got = await retrieve(question, topK);
+  const hits = got.hits;
   if (!hits.length) {
     logDone(question, hits, t0, true);
-    return { answer: FALLBACK, sources: [], suggestions: [] };
+    return withDebug({ answer: FALLBACK, sources: [], suggestions: [] }, question, got, t0);
   }
 
   let raw = "";
+  let firstTokenAt = 0;
   let sent = 0;
   try {
     for await (const token of chatStream(SYSTEM_PROMPT, buildUserMessage(question, hits))) {
       raw += token;
+      firstTokenAt ||= Date.now();
       const end = visibleEnd(raw);
       if (end > sent) onToken(raw.slice(sent, end)), (sent = end);
     }
@@ -118,5 +149,7 @@ export async function streamAnswer(
   const end = shown >= 0 ? shown : raw.length;
   if (end > sent) onToken(raw.slice(sent, end)); // flush the held-back tail
   logDone(question, hits, t0, true);
-  return finalize(raw, hits);
+  const result = finalize(raw, hits);
+  result.suggestions = await relevantSuggestions(result.suggestions);
+  return withDebug(result, question, got, t0, firstTokenAt || Date.now());
 }

@@ -1,0 +1,1 @@
+{ "name": "hybrid-rrf", "dataset": "people", "retrieval": { "mode": "hybrid", "fusion": "rrf", "topK": 5 }, "answers": true }

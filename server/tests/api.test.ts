@@ -16,10 +16,10 @@ vi.mock("../src/lib/llm.js", () => ({
   chat: vi.fn(async (system: string) =>
     system.includes("rewrite a follow-up")
       ? "When is my meeting with Ravi?"
-      : "Your meeting with Ravi is on Friday at 3 PM. [1]\n\nSuggestions:\n- What is the budget meeting about?\n- Who else is attending?"),
+      : "Your meeting with Ravi is on Friday at 3 PM. [1]\n\nSuggestions:\n- What is the budget meeting with Ravi on Friday?\n- What is the capital of Australia zzz?"),
   chatStream: async function* () {
     const text =
-      "Your meeting with Ravi is on Friday at 3 PM. [1]\n\nSuggestions:\n- What is the budget meeting about?\n- Who else is attending?";
+      "Your meeting with Ravi is on Friday at 3 PM. [1]\n\nSuggestions:\n- What is the budget meeting with Ravi on Friday?\n- What is the capital of Australia zzz?";
     for (let i = 0; i < text.length; i += 7) yield text.slice(i, i + 7);
   },
 }));
@@ -43,6 +43,12 @@ describe("api", () => {
     expect(res.status).toBe(400);
   });
 
+  it("private-network url → 422 URL_NOT_ALLOWED", async () => {
+    const res = await request(app).post("/ingest").send({ type: "url", content: "http://localhost:4000/health" });
+    expect(res.status).toBe(422);
+    expect(res.body.error.code).toBe("URL_NOT_ALLOWED");
+  });
+
   it("valid note → 201", async () => {
     const res = await request(app).post("/ingest").send({ type: "note", content: NOTE });
     expect(res.status).toBe(201);
@@ -61,7 +67,7 @@ describe("api", () => {
     expect(res.status).toBe(200);
     expect(res.body.answer).toContain("[1]");
     expect(res.body.answer).not.toContain("Suggestions");
-    expect(res.body.suggestions).toEqual(["What is the budget meeting about?", "Who else is attending?"]);
+    expect(res.body.suggestions).toEqual(["What is the budget meeting with Ravi on Friday?"]); // the unrelated one is filtered out
     expect(res.body.sources[0]).toMatchObject({ ref: 1, type: "note", cited: true });
   });
 
@@ -87,7 +93,7 @@ describe("api", () => {
     const done = events.at(-1)!;
     expect(done.event).toBe("done");
     expect(done.data.sources[0]).toMatchObject({ ref: 1, cited: true });
-    expect(done.data.suggestions).toHaveLength(2);
+    expect(done.data.suggestions).toEqual(["What is the budget meeting with Ravi on Friday?"]);
   });
 
   it("stream: validation error is a normal 400", async () => {

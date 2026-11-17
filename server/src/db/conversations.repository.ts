@@ -12,6 +12,7 @@ export interface MessageDto {
   content: string;
   sources: unknown[];
   suggestions: string[];
+  createdAt: string;
 }
 
 export const NEW_CHAT_TITLE = "New chat";
@@ -43,7 +44,7 @@ export function touchConversation(id: string, now: string, titleIfNew: string): 
   ).run(now, NEW_CHAT_TITLE, titleIfNew, id);
 }
 
-export function insertMessage(m: MessageDto & { conversationId: string; createdAt: string }): void {
+export function insertMessage(m: MessageDto & { conversationId: string }): void {
   db.prepare(
     `INSERT INTO messages (id, conversation_id, role, content, sources, suggestions, created_at)
      VALUES (?, ?, ?, ?, ?, ?, ?)`,
@@ -54,15 +55,18 @@ type Row = Omit<MessageDto, "sources" | "suggestions"> & { sources: string; sugg
 const toDto = (r: Row): MessageDto => ({ ...r, sources: JSON.parse(r.sources), suggestions: JSON.parse(r.suggestions) });
 
 /** Oldest first. rowid keeps insertion order when timestamps tie. */
+export const isUserMessageOf = (conversationId: string, messageId: string): boolean =>
+  db.prepare("SELECT 1 FROM messages WHERE id = ? AND conversation_id = ? AND role = 'user'").get(messageId, conversationId) !== undefined;
+
 export const listMessages = (conversationId: string): MessageDto[] =>
   (db
-    .prepare("SELECT id, role, content, sources, suggestions FROM messages WHERE conversation_id = ? ORDER BY rowid")
+    .prepare("SELECT id, role, content, sources, suggestions, created_at AS createdAt FROM messages WHERE conversation_id = ? ORDER BY rowid")
     .all(conversationId) as Row[]).map(toDto);
 
 export const recentMessages = (conversationId: string, limit: number): MessageDto[] =>
   (db
     .prepare(
-      `SELECT * FROM (SELECT rowid AS rid, id, role, content, sources, suggestions FROM messages
+      `SELECT * FROM (SELECT rowid AS rid, id, role, content, sources, suggestions, created_at AS createdAt FROM messages
                       WHERE conversation_id = ? ORDER BY rowid DESC LIMIT ?) ORDER BY rid`,
     )
     .all(conversationId, limit) as Row[]).map(toDto);

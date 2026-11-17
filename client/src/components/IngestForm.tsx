@@ -10,7 +10,7 @@ const isHttpUrl = (s: string) => {
   }
 };
 
-export function IngestForm({ onSave }: { onSave: (type: Item["type"], content: string) => Promise<void> }) {
+export function IngestForm({ onSave }: { onSave: (type: Item["type"], content: string) => Promise<unknown> }) {
   const [type, setType] = useState<Item["type"]>("note");
   const [content, setContent] = useState("");
   const [saving, setSaving] = useState(false);
