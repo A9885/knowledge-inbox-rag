@@ -15,6 +15,10 @@ npm run dev            # API on :4000, UI on :5173
 Optional: `cd server && npm run seed` loads sample notes and URLs; `npm test` runs the server tests; `npm run eval` runs the 13-question quality check.
 `GEMINI_API_KEY` alone is enough. `NVIDIA_API_KEY` is optional and makes answers faster (see "Models").
 
+### Free-tier quota
+
+The free Gemini tier allows about 1000 embedding requests a day. Saving a note or URL costs one request per batch of up to 100 chunks, and every question costs one (repeated questions within an hour are served from a small in-memory cache). When the limit is hit, saving and asking fail with a clear "Gemini quota reached" message (`429 PROVIDER_QUOTA`) until the quota resets, or you enable billing, which lifts the limit. The evaluation scripts cache question embeddings in `server/eval/.cache/`, so re-runs cost nothing; `npm run eval:full -- --config ... --retrieval-only` skips LLM answers entirely.
+
 ## Architecture
 
 ```mermaid
@@ -79,7 +83,7 @@ NVIDIA is about 3x faster to the first word, so it stays the default when a key 
 - `DEBUG=true` adds a `debug` object to answers (rewritten question, candidates with scores, timings) and a "Show details" toggle in the UI.
 - `npm run eval` (in `server/`) asks 13 questions (6 single, 2 follow-up chats, 3 not in the notes) and checks keywords, expected source and the not-found phrase. Current score: **13 / 13**. Baseline and notes: [`server/eval/baseline.md`](server/eval/baseline.md).
 - Retrieval eval (`server/`): `DB_PATH=<scratch.db> npm run seed:people` loads 23 fake-person notes into a scratch DB; with a server running on that DB (`DEBUG=true`), `npm run eval:full -- --config configs/vector.json` scores 37 questions in 8 categories (Recall@3/5, MRR, Hit@1, keyword/citation accuracy, p50/p95 speed) into `server/eval/results/`. Vector-only: Recall@5 98%, MRR 0.95, Hit@1 91%, answers 97% correct, not-found 100%. Weak spots: "list everyone who..." questions (Recall@5 85%, answer keywords 75%) and citing every source when an answer uses several. `npm run eval:compare` diffs two reports.
-- `npm test`: 63 server tests (SSRF, injection, relevance, fallback, edit/delete, pin, chunking, vector index, reindex).
+- `npm test`: 77 server tests (SSRF, injection, relevance, fallback, edit/delete, pin, chunking, vector index, reindex).
 
 ## Known limits
 

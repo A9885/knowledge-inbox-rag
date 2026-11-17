@@ -1,4 +1,5 @@
 // Evaluation engine: `npm run eval:full -- --config configs/vector.json`
+// Add --retrieval-only for retrieval metrics only (no LLM answers, no server). Start any answer-server with the same EMBED_CACHE_DIR to share the cache.
 // Needs a SCRATCH database seeded with `DB_PATH=... npm run seed:people`, and a server running on that same DB:
 //   DB_PATH=/tmp/people.db DEBUG=true PORT=4001 npm run dev    then    DB_PATH=/tmp/people.db API_URL=http://localhost:4001 npm run eval:full -- --config configs/vector.json
 // Retrieval metrics run in-process (no LLM); answer metrics go through the API. Report: eval/results/<date>-<config>.md (+ .json).
@@ -26,6 +27,9 @@ const cfg: Cfg = JSON.parse(readFileSync(cfgPath, "utf8"));
 // RETRIEVAL_MODE / HYBRID_FUSION, or the answer metrics describe a different retriever.
 process.env.RETRIEVAL_MODE = cfg.retrieval.mode;
 process.env.HYBRID_FUSION = cfg.retrieval.fusion ?? "rrf";
+// Question embeddings are cached on disk, so re-runs and config sweeps cost no embedding calls.
+process.env.EMBED_CACHE_DIR ??= resolve(EVAL_DIR, ".cache");
+if (process.argv.includes("--retrieval-only")) cfg.answers = false; // Recall/MRR/Hit@1 only: no LLM, no server needed
 const questions: Q[] = JSON.parse(readFileSync(resolve(EVAL_DIR, `datasets/${cfg.dataset}.json`), "utf8"));
 
 // Imported after the DB_PATH check: these open the database.

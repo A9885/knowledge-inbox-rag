@@ -271,14 +271,14 @@ Order: C1 reindex → C2 chunking → C3 vector optimization → C4 hybrid retri
 - **Embedding text:** embed `"<item title> — <chunk>"`; store and display only the chunk.
 - Run `npm run reindex` afterwards. **The live DB still needs this run once.**
 
-### C3. Vector optimization (`rag/vectorIndex.ts`) 🔄 (base ✅ = old C2; cache ⬜)
+### C3. Vector optimization (`rag/vectorIndex.ts`) ✅ (base = old C2; query cache done)
 - ✅ `VectorIndex` interface with `load()`, `upsert(itemId, chunks)`, `deleteItem(itemId)` and `search(vec, k)`.
 - ✅ `InMemoryVectorIndex`:
   - one contiguous `Float32Array` plus metadata, loaded at startup,
   - vectors normalized when saved and the query at search time, so search is a dot product,
   - kept in sync on ingest, PATCH, DELETE and reindex.
 - ✅ Log `vector_index.loaded` with the count and ms.
-- ⬜ **Query embedding cache:** LRU (500 entries, 1 h TTL) keyed by `sha256(question)`.
+- ✅ **Query embedding cache** (`rag/queryCache.ts`, used by `embedQueries` in `rag/embedder.ts`): LRU (500 entries, 1 h TTL) keyed by `sha256(question)`.
 - Tests: cache hit skips the embed call.
 - _768 dims moved to future work (section 10)._
 
@@ -311,6 +311,11 @@ Order: C1 reindex → C2 chunking → C3 vector optimization → C4 hybrid retri
 - **Compare:** `npm run eval:compare a.md b.md`.
 
 ### C6. Results 🔄 (vector row done; hybrid rows need the sweep re-run after the embedding quota resets)
+
+**Workflow (cheap first).** Embeddings are the scarce resource (Gemini free tier ~1000 requests a day), so:
+1. `DB_PATH=<scratch people db> npm run eval:full -- --config configs/<name>.json --retrieval-only` for `vector`, `hybrid-rrf` and `hybrid-weighted`. Recall@3/@5, MRR and Hit@1 only: no LLM, no server. Question embeddings are cached in `server/eval/.cache/` (git-ignored), so the first config embeds the ~37 questions once and the other two cost nothing, and so do re-runs.
+2. Run the full answer eval (`eval:full` without the flag, scratch server started with the same `RETRIEVAL_MODE`/`HYBRID_FUSION` and `EMBED_CACHE_DIR=server/eval/.cache`) only for the winner, plus the 13-question `npm run eval` smoke test if the default changes.
+3. Follow-up questions have no retrieval-only numbers (their search text is the server's rewritten question).
 Run each config and fill in the table for the README:
 
 | Config | Recall@5 | MRR | Answer acc. | Not-found ok | First word p50 | Total p50 |
@@ -483,6 +488,8 @@ HYBRID_FUSION=rrf            # rrf | weighted
 - C4 hybrid retrieval (default still `vector`): `chunks_fts` FTS5 table (content, title, chunk_id) kept in sync by SQL triggers on `chunks`/`items` (so ingest, PATCH, DELETE, cascade and reindex all stay in sync) and backfilled once in `db/migrate.ts` (checked on a scratch copy of the live DB: 22 chunks, 22 indexed); `rag/hybrid.ts` (safe FTS5 query: every word quoted and OR-ed, small stop list; multi-topic split; RRF k=60; weighted 0.7/0.3 with min-max per list; recency +0.02 for the newest of near-duplicates, scores scaled to 0..1 first because raw RRF scores are about 0.016) and `rag/retrieve.ts` (vector top 20 + bm25 top 20, relevance filter applied to cosine, `VectorIndex.similarity` scores keyword-only hits). Debug candidates carry vector/keyword/final rank (also shown in the UI). Configs `vector`, `hybrid-rrf`, `hybrid-weighted`; `eval:full` follows the config for in-process retrieval, the server must be started with the same RETRIEVAL_MODE/HYBRID_FUSION. 7 new tests (63 total). **The 3-config answer sweep could not be run**: the Gemini embedding free-tier daily quota (1000 requests) was exhausted (HTTP 429, resets in about 9 h), so the default was not changed
 - Provider resilience (llm.ts): first-token timeout (`LLM_FIRST_TOKEN_TIMEOUT_MS`, default 8000) and request timeout (`LLM_REQUEST_TIMEOUT_MS`, 30000, non-streamed); one fallback attempt to the other provider on timeout, 5xx, connection error or 404/410, in both directions (NVIDIA to Gemini `gemini-3.1-flash-lite`, Gemini to NVIDIA when a key is set); streams switch silently only before the first token; SDK retries off for chat; `llm.fallback` log with reason; 7 new mocked tests, no live calls
 - Clear 429 handling: provider 429 (embedding or chat) becomes `429 PROVIDER_QUOTA` with a readable message (embedding: Gemini free tier ~1000 requests a day, try later or enable billing), logged as `provider.quota_exceeded`, no fallback attempt; same error shape on HTTP and as the SSE `error` event. The client already shows `error.message` from the body and from SSE errors in the chat, ingest and item banners, so no UI change was needed; 3 new mocked API tests
+- C3 query embedding cache: LRU 500 entries, 1 h TTL, key `sha256(model + question)`, no new dependency; `retrieve` embeds the question and its sub-topics through it in one request. `EMBED_CACHE_DIR` adds a JSON file cache (no TTL); `eval:full` sets it to `server/eval/.cache/` (git-ignored) so re-runs and sweeps cost no embedding calls. 3 new tests (hit skips the call, LRU/TTL, file read/write on a temp dir)
+- C6 workflow: `eval:full --retrieval-only` (also `answers:false` in a config) computes Recall@3/@5, MRR and Hit@1 without LLM answers or a server; documented in C6. Not run (no live calls allowed while the embedding quota is exhausted)
 - _One line per finished task, e.g. "A1 SSRF guard: blocks private IPs, 4 new tests"_
 
 ## 10. Future work (README, if not built)
@@ -504,6 +511,6 @@ HYBRID_FUSION=rrf            # rrf | weighted
 - [x] README updated with every feature that was built (E1; update again after B4/C)
 - [x] Fresh clone works with only `GEMINI_API_KEY`
 - [x] No keys in git history
-- [ ] B4 ✅, C4 ✅, C5 ✅; C3 (cache) and the C6 hybrid sweep still open
-- [ ] Unbuilt Phase D items listed as future work
+- [x] B4, C3 (cache), C4, C5 done; [ ] C6 hybrid sweep still to run (retrieval-only first, see C6)
+- [x] Phase D (D1-D4) is not built: listed as future work in the README and section 10
 - [ ] Submitted by Thu 19 Nov evening

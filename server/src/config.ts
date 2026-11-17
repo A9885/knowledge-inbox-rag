@@ -12,6 +12,7 @@ const schema = z.object({
   CHAT_MODEL: z.string().optional(),
   LLM_FIRST_TOKEN_TIMEOUT_MS: z.coerce.number().int().positive().default(8000), // no first token by then → try the other provider
   LLM_REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().default(30000), // whole non-streamed call
+  EMBED_CACHE_DIR: z.string().optional(), // if set, query embeddings are also cached in a JSON file there (used by the evals)
   RELEVANCE_WINDOW: z.coerce.number().default(0.12), // keep chunks within this of the best score...
   RELEVANCE_HIGH_SCORE: z.coerce.number().default(0.6), // ...or at least this similar, whatever the best is
   RETRIEVAL_MODE: z.enum(["vector", "hybrid"]).default("vector"), // hybrid = vector + keyword (FTS5), fused

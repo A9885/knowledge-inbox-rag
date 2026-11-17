@@ -1,6 +1,6 @@
 import { searchKeywords } from "../db/chunks.repository.js";
 import { config } from "../config.js";
-import { embedMany } from "./embedder.js";
+import { embedQueries } from "./embedder.js";
 import { fuse, ftsQuery, newestOfDuplicates, RECENCY_BOOST, splitTopics, type RankedList } from "./hybrid.js";
 import { retrieveTopK, type Candidate, type ScoredChunk } from "./retriever.js";
 import { vectorIndex } from "./vectorIndex.js";
@@ -15,7 +15,7 @@ export async function retrieve(question: string, topK: number): Promise<Result> 
   const hybrid = config.RETRIEVAL_MODE === "hybrid";
   const texts = [question, ...(hybrid ? splitTopics(question) : [])];
   const t0 = Date.now();
-  const vecs = (await embedMany(texts)).map((v) => Float32Array.from(v));
+  const vecs = (await embedQueries(texts)).map((v) => Float32Array.from(v));
   const t1 = Date.now();
   const found = hybrid ? hybridSearch(texts, vecs, topK) : retrieveTopK(vecs[0], topK);
   return { ...found, embedMs: t1 - t0, searchMs: Date.now() - t1 };
