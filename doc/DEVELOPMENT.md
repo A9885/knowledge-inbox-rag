@@ -473,16 +473,20 @@ HYBRID_FUSION=rrf            # rrf | weighted
 
 ---
 
-## 8. Results (fill in as you go)
+## 8. Results (final, 2026-11-18)
 
 | Metric | Before | After |
 |--------|--------|-------|
-| Eval score (pass / total) | 13 / 13 (baseline) | 13 / 13 after C2 |
-| Time to first word | 0.3–0.5 s (benchmark); 12.5 s measured on 2026-11-18, provider slow that day | 323 ms median NVIDIA laguna, 1057 ms Gemini 3.1-flash-lite (`server/eval/latency.md`, 5 runs) |
-| Time to save a URL | 6.8 s | |
-| Search time (current data) | about 0.7 ms (7 ms cold in the debug panel: reload from SQLite + cosine, 78 chunks x 3072d) | 0.2 ms (78 chunks x 3072d); 19 ms at 10,000 chunks (synthetic, same dims) |
-| Server tests | 20 | 63 (after C4) |
-| Retrieval quality, vector only (37 fake-people questions, `eval/results/2026-11-18-vector.md`) | n/a | Recall@3 98%, Recall@5 98%, MRR 0.95, Hit@1 91%; keyword acc 97%, citation acc 87%, not-found 100%. Weak: list_filter (Recall@5 85%, Hit@1 50%, keyword acc 75%, citation 33%), two_entities citation (63%) |
+| Eval score, 13-question smoke test | 13 / 13 (baseline) | 13 / 13 (scratch copy of live DB, hybrid default) |
+| Time to first word | 0.3–0.5 s (benchmark); 12.5 s measured on 2026-11-18, provider slow that day | 323 ms median NVIDIA laguna, 1057 ms Gemini 3.1-flash-lite (`server/eval/latency.md`, 5 runs); 469 ms median in the people answer eval |
+| Time to save a URL | 6.8 s | 6.8 s (not re-measured) |
+| Search time (current data) | about 0.7 ms (7 ms cold in the debug panel: reload from SQLite + cosine, 78 chunks x 3072d) | 0.2 ms vector (78 chunks x 3072d); 19 ms at 10,000 chunks (synthetic); keyword search adds about 1-2 ms |
+| Server tests | 20 | 77 |
+| Retrieval, vector only (29 answerable single-turn questions, fake-people dataset) | n/a | Recall@5 98%, MRR 0.94, Hit@1 90% |
+| Retrieval, hybrid weighted (default) | n/a | Recall@5 99%, MRR 0.98, Hit@1 97% |
+| Answers, vector vs hybrid weighted (37 questions) | n/a | keyword acc 97% / 97%, citation acc 90% / 90%, not-found 100% / 100% |
+
+Weakest category: `list_filter` (hybrid weighted Recall@5 90%, Hit@1 75%): combining several records needs structured fields plus SQL filters, not top-k search. Full tables: section C6 and `server/eval/results/`.
 
 ## 9. Change log
 
