@@ -21,7 +21,7 @@ const BATCH = 100; // Gemini embeddings accept at most 100 inputs per request
 export async function embed(texts: string[]): Promise<number[][]> {
   const out: number[][] = [];
   for (let i = 0; i < texts.length; i += BATCH) {
-    const res = await api().embeddings.create({ model: config.EMBEDDING_MODEL, input: texts.slice(i, i + BATCH) }, { maxRetries: 2 });
+    const res = await api().embeddings.create({ model: config.EMBEDDING_MODEL, input: texts.slice(i, i + BATCH) }, { maxRetries: 1 });
     out.push(...res.data.sort((a, b) => a.index - b.index).map((d) => d.embedding));
   }
   return out;

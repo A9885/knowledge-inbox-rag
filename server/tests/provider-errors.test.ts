@@ -35,4 +35,36 @@ describe("provider failures", () => {
     expect(res.body.error.requestId).toBeTruthy();
     expect(chatCreate).toHaveBeenCalledTimes(2);
   });
+
+  it("embedding 429 on /ingest → 429 PROVIDER_QUOTA with the free-tier message", async () => {
+    embedCreate.mockRejectedValue(quota());
+    const res = await request(app).post("/ingest").send({ type: "note", content: "Anything at all." });
+    expect(res.status).toBe(429);
+    expect(res.body.error.code).toBe("PROVIDER_QUOTA");
+    expect(res.body.error.message).toContain("~1000 embedding requests a day");
+    expect(res.body.error.requestId).toBeTruthy();
+  });
+
+  it("embedding 429 on /query and /query/stream", async () => {
+    embedCreate.mockRejectedValue(quota());
+    const res = await request(app).post("/query").send({ question: "anything" });
+    expect(res.status).toBe(429);
+    expect(res.body.error.code).toBe("PROVIDER_QUOTA");
+
+    const sse = await request(app).post("/query/stream").send({ question: "anything" });
+    expect(sse.text).toContain("event: error");
+    expect(sse.text).toContain("PROVIDER_QUOTA");
+    expect(sse.text).toContain("Gemini quota reached");
+  });
+
+  it("chat 429 → PROVIDER_QUOTA (not LLM_FAILED), no fallback", async () => {
+    embedCreate.mockResolvedValue(vec(0.9));
+    await request(app).post("/ingest").send({ type: "note", content: "Rent is due on the fifth." });
+    chatCreate.mockRejectedValue(quota());
+    const res = await request(app).post("/query").send({ question: "rent due fifth" });
+    expect(res.status).toBe(429);
+    expect(res.body.error.code).toBe("PROVIDER_QUOTA");
+    expect(res.body.error.message).toContain("answer model");
+    expect(chatCreate).toHaveBeenCalledTimes(1);
+  });
 });

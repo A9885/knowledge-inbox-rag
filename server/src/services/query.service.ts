@@ -12,7 +12,7 @@ import {
 } from "../rag/prompt.js";
 import { chat, chatStream } from "../lib/llm.js";
 import { config } from "../config.js";
-import { AppError } from "../lib/errors.js";
+import { AppError, isQuota, quotaError } from "../lib/errors.js";
 import { log } from "../lib/logger.js";
 import { relevantSuggestions } from "./suggestions.js";
 import type { Turn } from "./conversation.service.js";
@@ -87,6 +87,7 @@ const withDebug = (r: Result, q: string, got: Retrieved, t0: number, firstTokenA
     : r;
 
 const llmFailed = (e: unknown) => {
+  if (isQuota(e)) return quotaError("chat", e);
   log.error({ err: (e as Error).message }, "llm.failed");
   return new AppError("LLM_FAILED", 502, "Language model provider failed", e);
 };
