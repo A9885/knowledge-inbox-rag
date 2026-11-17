@@ -191,7 +191,7 @@ Write the eval score, average time to first word, and time to save a URL in `eva
 - UI: 📌 button on **user** messages only; it shows "✓ Saved" after success, and a 409 also shows as saved.
 - Item icons: 📝 note, 🔗 url, 💬 chat, 🧠 memory.
 
-### B3. Dated sources ⬜
+### B3. Dated sources ✅
 - Each `<source>` tag carries `saved=` (the item's `updated_at`).
 - System prompt addition: "If sources disagree, trust the most recently saved one and mention that it changed."
 - Test: the prompt contains the dates.
@@ -336,11 +336,11 @@ MEMORY_REVIEW_ENABLED=true
 
 | Metric | Before | After |
 |--------|--------|-------|
-| Eval score (pass / total) | 13 / 13 (baseline) | 13 / 13 after A5 |
+| Eval score (pass / total) | 13 / 13 (baseline) | 13 / 13 after B3 |
 | Time to first word | 0.3–0.5 s (benchmark); 12.5 s measured on 2026-11-18, provider slow that day | |
 | Time to save a URL | 6.8 s | |
 | Search time (current data) | | |
-| Server tests | 20 | 42 (after A5) |
+| Server tests | 20 | 47 (after B3) |
 
 ## 9. Change log
 
@@ -358,6 +358,7 @@ MEMORY_REVIEW_ENABLED=true
 - A5 model fallback: NVIDIA 404/410 → logs `llm.model_unavailable`, retries once on Gemini `gemini-3.8-flash`; streams switch silently only before the first token; 4 new tests
 - B1 edit & delete: `items.updated_at` (ALTER + backfill in `db/migrate.ts`), `PATCH`/`DELETE`/`GET /items/:id`, embed outside the transaction, sources and messages carry dates, "note edited since" warning, item panel with edit/delete; 3 new tests. Extra: `GET /items/:id` (full text for the edit box)
 - B2 pin to inbox: ingest `type: "chat"`, `items.conversation_id` / `message_id` (unique), 409 ALREADY_SAVED, only the user's own messages can be pinned (404 otherwise); items table rebuilt in `db/migrate.ts` (SQLite can't alter a CHECK) with foreign keys off, verified on scratch copies (all items and chunks kept); 📌 on user messages, item icons; 1 new test. The chat now reloads messages after each answer so it has their server ids
+- B3 dated sources: `saved=` is the item's `updated_at` (wired in B1), system prompt says newest wins and to mention the change; 1 new test
 - _One line per finished task, e.g. "A1 SSRF guard: blocks private IPs, 4 new tests"_
 
 ## 10. Future work (README, if not built)
