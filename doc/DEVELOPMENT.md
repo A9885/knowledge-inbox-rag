@@ -154,7 +154,7 @@ Write the eval score, average time to first word, and time to save a URL in `eva
 - Keep a chunk if `score >= best - RELEVANCE_WINDOW` (0.12) **OR** `score >= RELEVANCE_HIGH_SCORE` (0.6), then apply `topK`. Both values live in `config.ts`.
 - Test: notes scoring 0.82 and 0.65 are both kept.
 
-### A4. Filter suggestions ⬜
+### A4. Filter suggestions ✅
 - Embed the suggestions in one batched call, and keep those whose best chunk score is ≥ `RELEVANCE_HIGH_SCORE - 0.1`.
 - If the embedding fails, return no suggestions; never fail the answer.
 - Test: an unrelated suggestion is removed.
@@ -354,6 +354,7 @@ MEMORY_REVIEW_ENABLED=true
 - A1 SSRF guard: private/loopback/link-local ranges, localhost, non-http schemes and redirect targets (max 3) blocked with 422 URL_NOT_ALLOWED; 12 new tests (32 total)
 - A2 prompt-injection safety: `<source>` tags (id, type, title, saved date), tag stripping, system-prompt rule, `chunks.flagged` (ALTER TABLE migration, data kept), `lib/injection.ts`, ⚠ badge, `rel="noopener noreferrer"`; 2 new tests. Also added a Goa example to the rewrite prompt: the model had started dropping the topic from "and where is the hotel?" (eval 12/13)
 - A3 relevance filter: keep `score >= best - RELEVANCE_WINDOW` or `>= RELEVANCE_HIGH_SCORE` (both in config); debug reason `high_score`; 2 new tests
+- A4 suggestion filter (`services/suggestions.ts`): one batched embedding, keep best-chunk score >= 0.5, any failure → no suggestions; 2 new tests, 2 existing assertions updated (mock suggestions made realistic)
 - _One line per finished task, e.g. "A1 SSRF guard: blocks private IPs, 4 new tests"_
 
 ## 10. Future work (README, if not built)

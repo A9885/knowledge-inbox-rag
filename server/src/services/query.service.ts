@@ -14,6 +14,7 @@ import { chat, chatStream } from "../lib/llm.js";
 import { config } from "../config.js";
 import { AppError } from "../lib/errors.js";
 import { log } from "../lib/logger.js";
+import { relevantSuggestions } from "./suggestions.js";
 import type { Turn } from "./conversation.service.js";
 
 const SNIPPET_CHARS = 300;
@@ -115,6 +116,7 @@ export async function answerQuestion(question: string, topK: number, history: Tu
       throw llmFailed(e);
     }
   }
+  result.suggestions = await relevantSuggestions(result.suggestions); // outside the try: it never fails the answer
   logDone(question, hits, t0, false);
   return withDebug(result, question, got, t0);
 }
@@ -152,5 +154,7 @@ export async function streamAnswer(
   const end = shown >= 0 ? shown : raw.length;
   if (end > sent) onToken(raw.slice(sent, end)); // flush the held-back tail
   logDone(question, hits, t0, true);
-  return withDebug(finalize(raw, hits), question, got, t0, firstTokenAt || Date.now());
+  const result = finalize(raw, hits);
+  result.suggestions = await relevantSuggestions(result.suggestions);
+  return withDebug(result, question, got, t0, firstTokenAt || Date.now());
 }

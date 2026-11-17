@@ -26,3 +26,9 @@ export function retrieveTopK(queryVec: Float32Array, k = 5, minScore = 0.25) {
   });
   return { hits, candidates };
 }
+
+/** Best chunk similarity for each vector (one pass over the stored chunks). */
+export function bestScores(vecs: Float32Array[]): number[] {
+  const chunks = loadAllChunks();
+  return vecs.map((v) => Math.max(0, ...chunks.map((c) => cosineSimilarity(v, c.embedding))));
+}
