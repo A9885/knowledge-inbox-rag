@@ -216,7 +216,7 @@ Write the eval score, average time to first word, and time to save a URL in `eva
   - sentences overlap between chunks,
   - tiny chunks are merged.
 
-### C2. Vector cache (`rag/vectorIndex.ts`) ⬜
+### C2. Vector cache (`rag/vectorIndex.ts`) ✅
 - Add a `VectorIndex` interface with `load()`, `upsert(itemId, chunks)`, `deleteItem(itemId)` and `search(vec, k)`.
 - `InMemoryVectorIndex`:
   - stores all vectors in one contiguous `Float32Array` plus a metadata array,
@@ -336,11 +336,11 @@ MEMORY_REVIEW_ENABLED=true
 
 | Metric | Before | After |
 |--------|--------|-------|
-| Eval score (pass / total) | 13 / 13 (baseline) | 13 / 13 after B3 |
+| Eval score (pass / total) | 13 / 13 (baseline) | 13 / 13 after C2 |
 | Time to first word | 0.3–0.5 s (benchmark); 12.5 s measured on 2026-11-18, provider slow that day | |
 | Time to save a URL | 6.8 s | |
-| Search time (current data) | | |
-| Server tests | 20 | 47 (after B3) |
+| Search time (current data) | about 0.7 ms (7 ms cold in the debug panel: reload from SQLite + cosine, 78 chunks x 3072d) | 0.2 ms (78 chunks x 3072d); 19 ms at 10,000 chunks (synthetic, same dims) |
+| Server tests | 20 | 53 (after C2) |
 
 ## 9. Change log
 
@@ -361,6 +361,7 @@ MEMORY_REVIEW_ENABLED=true
 - B3 dated sources: `saved=` is the item's `updated_at` (wired in B1), system prompt says newest wins and to mention the change; 1 new test
 - C0 reindex: `npm run reindex` (`services/reindex.service.ts`), embed outside the transaction, one transaction per item, a failed item keeps its old chunks, logs `reindex.item_done` / `reindex.done`; 1 new test; run on a scratch copy only
 - C1 smarter chunking: sections (URL h1-h3 kept as `# heading` lines in the saved text, notes can use them too) never mix, `"<heading>: "` prefix, sentence packing with 2-sentence overlap, tiny chunks (<200) merged into the previous one (may run up to 200 over 2000), `"<title> — <chunk>"` embedded but only the chunk stored. Gate on a scratch copy after `npm run reindex`: eval 13/13 (22 → 20 chunks). **The live DB needs `npm run reindex` after merging** (old and new chunks coexist until then). Old URL items have no heading lines, so they chunk by sentences only until the URL is re-added. 7 chunker tests (overlap test rewritten for sentence overlap), 1 new fetch test
+- C2 vector cache: `VectorIndex` + `InMemoryVectorIndex` (one contiguous Float32Array, normalized, dot product), loaded at start (`vector_index.loaded`), updated on ingest, PATCH, DELETE and in-process reindex; a separate `npm run reindex` process is noticed through SQLite `data_version` and the index reloads (checked 22 → 20 chunks on a scratch server); 2 new tests
 - _One line per finished task, e.g. "A1 SSRF guard: blocks private IPs, 4 new tests"_
 
 ## 10. Future work (README, if not built)

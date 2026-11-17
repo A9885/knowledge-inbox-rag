@@ -2,6 +2,7 @@ import { inTransaction } from "../db/connection.js";
 import { deleteChunksOfItem, insertChunks } from "../db/chunks.repository.js";
 import { listItemTexts } from "../db/items.repository.js";
 import { log } from "../lib/logger.js";
+import { syncItem } from "../rag/vectorIndex.js";
 import { prepareChunks, toNewChunks } from "./prepare.js";
 
 /**
@@ -21,6 +22,7 @@ export async function reindexAll(): Promise<{ items: number; failed: number }> {
         deleteChunksOfItem(it.id);
         insertChunks(toNewChunks(it.id, prepared));
       });
+      syncItem(it.id);
       log.info({ itemId: it.id, chunkCount: prepared.pieces.length, ms: Date.now() - t }, "reindex.item_done");
     } catch (e) {
       failed++;

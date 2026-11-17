@@ -31,14 +31,14 @@ export function insertChunks(chunks: NewChunk[]): void {
   }
 }
 
-export function loadAllChunks(): StoredChunk[] {
+function load(where: string, ...params: string[]): StoredChunk[] {
   const rows = db
     .prepare(
       `SELECT c.id AS chunkId, c.item_id AS itemId, i.title, i.source_type AS type,
               i.source_url AS sourceUrl, c.content, c.embedding, c.flagged, COALESCE(i.updated_at, i.created_at) AS updatedAt
-       FROM chunks c JOIN items i ON i.id = c.item_id WHERE i.status = 'ready'`,
+       FROM chunks c JOIN items i ON i.id = c.item_id WHERE i.status = 'ready' ${where} ORDER BY c.item_id, c.chunk_index`,
     )
-    .all() as (Omit<StoredChunk, "embedding" | "flagged"> & { embedding: Buffer; flagged: number })[];
+    .all(...params) as (Omit<StoredChunk, "embedding" | "flagged"> & { embedding: Buffer; flagged: number })[];
   // Copy the bytes: a Buffer's byteOffset may not be 4-byte aligned.
   return rows.map((r) => ({
     ...r,
@@ -46,6 +46,9 @@ export function loadAllChunks(): StoredChunk[] {
     embedding: new Float32Array(r.embedding.buffer.slice(r.embedding.byteOffset, r.embedding.byteOffset + r.embedding.byteLength)),
   }));
 }
+
+export const loadAllChunks = (): StoredChunk[] => load("");
+export const loadChunksOfItem = (itemId: string): StoredChunk[] => load("AND c.item_id = ?", itemId);
 
 export const deleteChunksOfItem = (itemId: string): void =>
   void db.prepare("DELETE FROM chunks WHERE item_id = ?").run(itemId);

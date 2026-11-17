@@ -4,6 +4,7 @@ import { insertChunks } from "../db/chunks.repository.js";
 import { isUserMessageOf } from "../db/conversations.repository.js";
 import { getItem, insertItem, messageAlreadySaved, type ItemDto } from "../db/items.repository.js";
 import { AppError } from "../lib/errors.js";
+import { syncItem } from "../rag/vectorIndex.js";
 import { fetchPage } from "../lib/fetchUrl.js";
 import { log } from "../lib/logger.js";
 import { noteTitle, prepareChunks, toNewChunks } from "./prepare.js";
@@ -57,6 +58,7 @@ export async function ingest(input: Input): Promise<ItemDto> {
     throw e;
   }
 
+  syncItem(id);
   if (flags.some(Boolean)) log.warn({ itemId: id, flaggedChunks: flags.filter(Boolean).length }, "ingest.injection_flagged");
   log.info({ itemId: id, type, chunkCount: pieces.length, ms: Date.now() - t0 }, "ingest.completed");
   return getItem(id)!;

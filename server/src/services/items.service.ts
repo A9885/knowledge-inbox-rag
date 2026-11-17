@@ -3,6 +3,7 @@ import { deleteChunksOfItem, insertChunks } from "../db/chunks.repository.js";
 import { deleteItem, getItem, getItemContent, updateItem, type ItemDto } from "../db/items.repository.js";
 import { AppError } from "../lib/errors.js";
 import { log } from "../lib/logger.js";
+import { syncItem, vectorIndex } from "../rag/vectorIndex.js";
 import { noteTitle, prepareChunks, toNewChunks } from "./prepare.js";
 
 const notFound = () => new AppError("ITEM_NOT_FOUND", 404, "Item not found");
@@ -24,11 +25,13 @@ export async function editItem(id: string, content: string): Promise<ItemDto> {
     insertChunks(toNewChunks(id, prepared));
     updateItem(id, noteTitle(content), content, new Date().toISOString());
   });
+  syncItem(id);
   log.info({ itemId: id, chunkCount: prepared.pieces.length }, "item.updated");
   return getItem(id)!;
 }
 
 export function removeItem(id: string): void {
   if (!deleteItem(id)) throw notFound();
+  vectorIndex.deleteItem(id);
   log.info({ itemId: id }, "item.deleted");
 }
