@@ -10,6 +10,8 @@ const schema = z.object({
   EMBEDDING_MODEL: z.string().default("gemini-embedding-001"),
   NVIDIA_API_KEY: z.string().optional(), // if set, chat goes to NVIDIA NIM instead of Gemini
   CHAT_MODEL: z.string().optional(),
+  LLM_FIRST_TOKEN_TIMEOUT_MS: z.coerce.number().int().positive().default(8000), // no first token by then → try the other provider
+  LLM_REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().default(30000), // whole non-streamed call
   RELEVANCE_WINDOW: z.coerce.number().default(0.12), // keep chunks within this of the best score...
   RELEVANCE_HIGH_SCORE: z.coerce.number().default(0.6), // ...or at least this similar, whatever the best is
   RETRIEVAL_MODE: z.enum(["vector", "hybrid"]).default("vector"), // hybrid = vector + keyword (FTS5), fused
