@@ -411,7 +411,7 @@ The speed differences in first token and total are LLM provider variance (the re
 | E2 | Root `package.json`: `npm run setup` and `npm run dev` (server + client via `concurrently`) | ✅ |
 | E3 | Fresh-clone test in a new folder with only `GEMINI_API_KEY`; fix anything that fails | ✅ |
 | E4 | No secrets in git history; `.env.example` complete | ✅ |
-| E5 | Merge `phase-2` → `main`, push, check the GitHub page | ⬜ |
+| E5 | Merge `phase-2` → `main`, push, check the GitHub page | ✅ (merged as `cb69ec3`, pushed 2026-11-18) |
 
 ---
 
@@ -539,4 +539,4 @@ HYBRID_FUSION=rrf            # rrf | weighted
 - [x] No keys in git history
 - [x] B4, C3 (cache), C4, C5 done; C6 sweep done (hybrid + weighted is the default)
 - [x] Phase D (D1-D4) is not built: listed as future work in the README and section 10
-- [ ] Submitted by Thu 19 Nov evening
+- [x] Submitted by Thu 19 Nov evening
