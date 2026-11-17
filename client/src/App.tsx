@@ -10,7 +10,7 @@ import { ItemPanel } from "./components/ItemPanel";
 import { ItemList } from "./components/ItemList";
 
 export default function App() {
-  const { items, loading, error, addItem, editItem, removeItem } = useItems();
+  const { items, loading, error, addItem, pinMessage, editItem, removeItem } = useItems();
   const [panel, setPanel] = useState<{ id: string; edit: boolean } | null>(null);
   const chats = useChats();
   const [question, setQuestion] = useState("");
@@ -32,7 +32,7 @@ export default function App() {
         <div className="space-y-2">
           <ChatTabs tabs={chats.tabs} activeId={chats.activeId} disabled={chats.loading} onOpen={chats.open} onClose={chats.close} />
           <ErrorBanner message={chats.error} />
-          <ChatThread messages={chats.messages} draft={chats.draft} onSuggest={run} items={items} onOpenItem={(id) => setPanel({ id, edit: false })} />
+          <ChatThread messages={chats.messages} draft={chats.draft} onSuggest={run} items={items} onOpenItem={(id) => setPanel({ id, edit: false })} onPin={(mid, text) => pinMessage(chats.activeId!, mid, text)} />
           <AskBox value={question} onChange={setQuestion} onAsk={run} loading={chats.loading} />
         </div>
       </main>

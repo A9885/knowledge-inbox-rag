@@ -9,8 +9,9 @@ if (config.DB_PATH !== ":memory:") mkdirSync(dirname(config.DB_PATH), { recursiv
 export const db = new Database(config.DB_PATH);
 db.pragma("foreign_keys = ON");
 // Same relative path works from src/db and dist/db.
-db.exec(readFileSync(new URL("../../src/db/schema.sql", import.meta.url), "utf8"));
+const schema = readFileSync(new URL("../../src/db/schema.sql", import.meta.url), "utf8");
+db.exec(schema);
 
-migrate(db);
+migrate(db, schema);
 
 export const inTransaction = <T>(fn: () => T): T => db.transaction(fn)();

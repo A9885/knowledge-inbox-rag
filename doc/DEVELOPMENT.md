@@ -185,7 +185,7 @@ Write the eval score, average time to first word, and time to save a URL in `eva
   - PATCH on a URL → 409,
   - DELETE removes the chunks.
 
-### B2. 📌 Save to inbox ⬜
+### B2. 📌 Save to inbox ✅
 - Ingest accepts `type: "chat"` with `{ content, conversationId, messageId }`.
 - Add `items.conversation_id` and `items.message_id`, with a unique index on `message_id`. A second save of the same message returns `409 ALREADY_SAVED`.
 - UI: 📌 button on **user** messages only; it shows "✓ Saved" after success, and a 409 also shows as saved.
@@ -357,6 +357,7 @@ MEMORY_REVIEW_ENABLED=true
 - A4 suggestion filter (`services/suggestions.ts`): one batched embedding, keep best-chunk score >= 0.5, any failure → no suggestions; 2 new tests, 2 existing assertions updated (mock suggestions made realistic)
 - A5 model fallback: NVIDIA 404/410 → logs `llm.model_unavailable`, retries once on Gemini `gemini-3.8-flash`; streams switch silently only before the first token; 4 new tests
 - B1 edit & delete: `items.updated_at` (ALTER + backfill in `db/migrate.ts`), `PATCH`/`DELETE`/`GET /items/:id`, embed outside the transaction, sources and messages carry dates, "note edited since" warning, item panel with edit/delete; 3 new tests. Extra: `GET /items/:id` (full text for the edit box)
+- B2 pin to inbox: ingest `type: "chat"`, `items.conversation_id` / `message_id` (unique), 409 ALREADY_SAVED, only the user's own messages can be pinned (404 otherwise); items table rebuilt in `db/migrate.ts` (SQLite can't alter a CHECK) with foreign keys off, verified on scratch copies (all items and chunks kept); 📌 on user messages, item icons; 1 new test. The chat now reloads messages after each answer so it has their server ids
 - _One line per finished task, e.g. "A1 SSRF guard: blocks private IPs, 4 new tests"_
 
 ## 10. Future work (README, if not built)

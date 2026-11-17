@@ -30,6 +30,9 @@ const post = (body: unknown): RequestInit => ({ method: "POST", body: JSON.strin
 export const ingest = (type: Item["type"], content: string) =>
   request<{ item: Item }>("/ingest", post({ type, content })).then((r) => r.item);
 
+export const pinMessage = (conversationId: string, messageId: string, content: string) =>
+  request<{ item: Item }>("/ingest", post({ type: "chat", content, conversationId, messageId })).then((r) => r.item);
+
 export const getItem = (id: string) =>
   request<{ item: Item & { content: string } }>(`/items/${id}`).then((r) => r.item);
 export const editItem = (id: string, content: string) =>

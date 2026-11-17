@@ -27,6 +27,16 @@ export function useItems() {
     setItems((prev) => [item, ...prev]);
   };
 
+  /** Pins a user message. An already-pinned message counts as saved. */
+  const pinMessage = async (conversationId: string, messageId: string, content: string) => {
+    try {
+      const item = await api.pinMessage(conversationId, messageId, content);
+      setItems((prev) => [item, ...prev]);
+    } catch (e) {
+      if ((e as api.ApiError).code !== "ALREADY_SAVED") throw e;
+    }
+  };
+
   const editItem = async (id: string, content: string) => {
     const item = await api.editItem(id, content);
     setItems((prev) => prev.map((i) => (i.id === id ? item : i)));
@@ -37,5 +47,5 @@ export function useItems() {
     setItems((prev) => prev.filter((i) => i.id !== id));
   };
 
-  return { items, loading, error, refresh, addItem, editItem, removeItem };
+  return { items, loading, error, refresh, addItem, pinMessage, editItem, removeItem };
 }

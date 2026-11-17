@@ -1,4 +1,5 @@
 import { db } from "./connection.js";
+import type { ItemType } from "./items.repository.js";
 
 export interface NewChunk {
   id: string;
@@ -13,7 +14,7 @@ export interface StoredChunk {
   chunkId: string;
   itemId: string;
   title: string;
-  type: "note" | "url";
+  type: ItemType;
   sourceUrl: string | null;
   content: string;
   flagged: boolean;

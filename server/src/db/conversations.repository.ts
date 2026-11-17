@@ -55,6 +55,9 @@ type Row = Omit<MessageDto, "sources" | "suggestions"> & { sources: string; sugg
 const toDto = (r: Row): MessageDto => ({ ...r, sources: JSON.parse(r.sources), suggestions: JSON.parse(r.suggestions) });
 
 /** Oldest first. rowid keeps insertion order when timestamps tie. */
+export const isUserMessageOf = (conversationId: string, messageId: string): boolean =>
+  db.prepare("SELECT 1 FROM messages WHERE id = ? AND conversation_id = ? AND role = 'user'").get(messageId, conversationId) !== undefined;
+
 export const listMessages = (conversationId: string): MessageDto[] =>
   (db
     .prepare("SELECT id, role, content, sources, suggestions, created_at AS createdAt FROM messages WHERE conversation_id = ? ORDER BY rowid")

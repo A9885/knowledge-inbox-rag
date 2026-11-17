@@ -1,8 +1,10 @@
 import { db } from "./connection.js";
 
+export type ItemType = "note" | "url" | "chat" | "memory";
+
 export interface ItemDto {
   id: string;
-  type: "note" | "url";
+  type: ItemType;
   title: string;
   sourceUrl: string | null;
   preview: string;
@@ -14,18 +16,20 @@ export interface ItemDto {
 
 export interface NewItem {
   id: string;
-  type: "note" | "url";
+  type: ItemType;
   sourceUrl: string | null;
   title: string;
   rawContent: string;
   createdAt: string;
+  conversationId?: string;
+  messageId?: string;
 }
 
 export function insertItem(i: NewItem): void {
   db.prepare(
-    `INSERT INTO items (id, source_type, source_url, title, raw_content, status, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, 'ready', ?, ?)`,
-  ).run(i.id, i.type, i.sourceUrl, i.title, i.rawContent, i.createdAt, i.createdAt);
+    `INSERT INTO items (id, source_type, source_url, title, raw_content, status, created_at, updated_at, conversation_id, message_id)
+     VALUES (?, ?, ?, ?, ?, 'ready', ?, ?, ?, ?)`,
+  ).run(i.id, i.type, i.sourceUrl, i.title, i.rawContent, i.createdAt, i.createdAt, i.conversationId ?? null, i.messageId ?? null);
 }
 
 const SELECT = `
@@ -49,3 +53,6 @@ export const updateItem = (id: string, title: string, rawContent: string, update
 
 /** Chunks go with it (ON DELETE CASCADE). */
 export const deleteItem = (id: string): boolean => db.prepare("DELETE FROM items WHERE id = ?").run(id).changes > 0;
+
+export const messageAlreadySaved = (messageId: string): boolean =>
+  db.prepare("SELECT 1 FROM items WHERE message_id = ?").get(messageId) !== undefined;

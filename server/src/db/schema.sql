@@ -1,13 +1,15 @@
 CREATE TABLE IF NOT EXISTS items (
   id           TEXT PRIMARY KEY,            -- uuid
-  source_type  TEXT NOT NULL CHECK (source_type IN ('note','url')),
+  source_type  TEXT NOT NULL CHECK (source_type IN ('note','url','chat','memory')),
   source_url   TEXT,                        -- null for notes
   title        TEXT NOT NULL,
   raw_content  TEXT NOT NULL,
   status       TEXT NOT NULL DEFAULT 'ready' CHECK (status IN ('processing','ready','failed')),
   error        TEXT,
   created_at   TEXT NOT NULL,               -- ISO timestamp
-  updated_at   TEXT                         -- set on edit; null/old rows fall back to created_at
+  updated_at   TEXT,                        -- set on edit; null/old rows fall back to created_at
+  conversation_id TEXT,                     -- chat items: the chat they were pinned from
+  message_id   TEXT                         -- chat items: the pinned user message (unique)
 );
 
 CREATE TABLE IF NOT EXISTS chunks (
