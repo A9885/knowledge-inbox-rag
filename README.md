@@ -48,7 +48,7 @@ flowchart LR
 
 - **Chunking:** URLs split by `h1`-`h3` sections (sections never mix); each chunk starts with its heading. Inside a section, sentences are packed to about 2000 characters (~500 tokens) with the last 2 sentences repeated at the next chunk. Pieces under 200 characters merge into their neighbour. Short notes stay one chunk. The embedded text is `"<title> - <chunk>"`; only the chunk is stored and shown.
 - **Vector index:** all vectors live in one normalized `Float32Array` loaded at startup, so search is a dot product. Exact (no approximation), kept in sync on ingest, edit, delete and reindex. Measured: 0.2 ms for 78 chunks, 19 ms for 10,000 chunks (3072 dims, synthetic).
-- **Models:** embeddings are Gemini `gemini-embedding-001` (3072 dims). Answers use NVIDIA `poolside/laguna-xs-2.1` when `NVIDIA_API_KEY` is set, otherwise Gemini `gemini-3.8-flash`. If the NVIDIA model is retired (404/410) the call silently retries once on Gemini.
+- **Models:** embeddings are Gemini `gemini-embedding-001` (3072 dims). Answers use NVIDIA `poolside/laguna-xs-2.1` when `NVIDIA_API_KEY` is set, otherwise Gemini `gemini-3.1-flash-lite` (the bigger `gemini-3.8-flash` timed out or returned 503 on the day of the benchmark and the fresh-clone test). If the NVIDIA model is retired (404/410) the call silently retries once on Gemini.
 - **Relevance:** keep a chunk if its score is within 0.12 of the best one, or at least 0.6 on its own, so a second relevant note is not hidden. Nothing relevant: the model is told to say it couldn't find it.
 - **Citations:** sources are numbered in the prompt; the answer's `[n]` markers decide which sources are returned. If nothing is cited, the closest source is shown.
 - **Newest fact wins:** every source carries its saved date, and the prompt says to trust the most recent one and mention the change.
@@ -60,9 +60,9 @@ Real prompt (system prompt + 3 seed chunks), streaming, 5 runs each, 2026-11-18.
 | Model | First token min / median / max (ms) | Total median (ms) |
 |-------|-------------------------------------|-------------------|
 | NVIDIA `poolside/laguna-xs-2.1` (default with NVIDIA key) | 306 / 323 / 582 | 908 |
-| Gemini `gemini-3.1-flash-lite` | 871 / 1057 / 1189 | 1175 |
+| Gemini `gemini-3.1-flash-lite` (zero-setup default, fallback) | 871 / 1057 / 1189 | 1175 |
 | Gemini `gemini-3.5-flash-lite` | 700 / 1548 / 2747 | 1747 |
-| Gemini `gemini-3.8-flash` (zero-setup default, fallback) | no answer: timeouts and a 503 that day | n/a |
+| Gemini `gemini-3.8-flash` | no answer: timeouts and a 503 that day | n/a |
 
 NVIDIA is about 3x faster to the first word, so it stays the default when a key is present. The Gemini fast model was overloaded during the run, so its speed is unknown.
 

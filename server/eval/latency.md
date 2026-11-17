@@ -7,7 +7,7 @@ one machine. Question: "What are my plans for the Goa trip?". Times are in ms. S
 | Model | Runs ok | First token min / median / max | Total min / median / max |
 |-------|---------|--------------------------------|--------------------------|
 | NVIDIA `poolside/laguna-xs-2.1` (current default) | 5/5 | 306 / 323 / 582 | 701 / 908 / 9782 |
-| Gemini `gemini-3.8-flash` (current fallback) | 0/5 | no token: 4 timeouts at 20 s, 1 HTTP 503 | n/a |
+| Gemini `gemini-3.8-flash` (previous Gemini default) | 0/5 | no token: 4 timeouts at 20 s, 1 HTTP 503 | n/a |
 | Gemini `gemini-3.1-flash-lite` | 5/5 | 871 / 1057 / 1189 | 1016 / 1175 / 1319 |
 | Gemini `gemini-3.5-flash-lite` | 5/5 | 700 / 1548 / 2747 | 836 / 1747 / 2881 |
 
@@ -22,7 +22,8 @@ So the 3.8-flash result is provider load on the day, not a prompt problem; treat
 
 ## Decision
 Gemini is **not** faster. The best working Gemini model is about 3x slower to first token than NVIDIA laguna (median 1057 vs 323 ms),
-and the Gemini fast model `gemini-3.8-flash` was unavailable during the run. Default unchanged: NVIDIA when `NVIDIA_API_KEY` is set,
-Gemini `gemini-3.8-flash` when it is not (zero-setup) and as the fallback when the NVIDIA model is retired.
-Open point for later: `gemini-3.1-flash-lite` answered reliably while 3.8-flash did not; consider it as the zero-setup/fallback model
-after re-running when the provider is quiet.
+so NVIDIA stays the default when `NVIDIA_API_KEY` is set (opt-in by key; `CHAT_MODEL` overrides).
+
+Zero-setup change (found by the fresh-clone test, E3): with only `GEMINI_API_KEY`, `gemini-3.8-flash` (and `gemini-3.7-flash`) hung or
+returned 503 on every call that day, so a fresh clone could not answer. The Gemini default and the A5 fallback model are now
+`gemini-3.1-flash-lite`, which answered every run, cites `[n]`, and writes grounded suggestions.

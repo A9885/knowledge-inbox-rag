@@ -16,7 +16,7 @@ describe("model fallback", () => {
     create.mockRejectedValueOnce(gone).mockResolvedValueOnce({ choices: [{ message: { content: " from gemini " } }] });
     expect(await chat("s", "u")).toBe("from gemini");
     expect(create.mock.calls[0][0].model).toBe("poolside/laguna-xs-2.1");
-    expect(create.mock.calls[1][0].model).toBe("gemini-3.8-flash");
+    expect(create.mock.calls[1][0].model).toBe("gemini-3.1-flash-lite");
   });
 
   it("other errors are not retried", async () => {

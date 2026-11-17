@@ -160,7 +160,7 @@ Write the eval score, average time to first word, and time to save a URL in `eva
 - Test: an unrelated suggestion is removed.
 
 ### A5. Model fallback (`lib/llm.ts`) ✅
-- If NVIDIA returns 404 or 410 (model not found), log `llm.model_unavailable` and retry once with Gemini (fixed fallback model `gemini-3.8-flash`, because `gemini-2.5-flash` returns 404; `CHAT_MODEL` sets the primary answer model).
+- If NVIDIA returns 404 or 410 (model not found), log `llm.model_unavailable` and retry once with Gemini (fixed fallback model `gemini-3.1-flash-lite`, because `gemini-2.5-flash` returns 404; `CHAT_MODEL` sets the primary answer model).
 - Streaming: a failure before the first token switches providers silently; a failure after it sends an SSE `error` event.
 - Test: mocked NVIDIA 410 → the answer comes from mocked Gemini.
 
@@ -407,7 +407,7 @@ Add one paragraph on why the default was chosen, plus per-category notes. For ex
 DEBUG=false
 RELEVANCE_WINDOW=0.12
 RELEVANCE_HIGH_SCORE=0.6
-CHAT_MODEL=                   # answer model; Gemini fallback defaults to gemini-3.8-flash
+CHAT_MODEL=                   # answer model; Gemini fallback defaults to gemini-3.1-flash-lite
 EMBEDDING_MODE=gemini         # gemini | local | both
 EMBEDDER_URL=http://localhost:8000
 REDIS_URL=                    # optional

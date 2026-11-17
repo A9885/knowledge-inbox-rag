@@ -16,7 +16,7 @@ const chatApi = () =>
     ? (nvidia ??= new OpenAI({ apiKey: config.NVIDIA_API_KEY, baseURL: "https://integrate.api.nvidia.com/v1" }))
     : api();
 const chatModel = () =>
-  config.CHAT_MODEL ?? (config.NVIDIA_API_KEY ? "poolside/laguna-xs-2.1" : "gemini-3.8-flash");
+  config.CHAT_MODEL ?? (config.NVIDIA_API_KEY ? "poolside/laguna-xs-2.1" : "gemini-3.1-flash-lite");
 
 const MAX_TOKENS = 700;
 const BATCH = 100; // Gemini embeddings accept at most 100 inputs per request
@@ -30,7 +30,7 @@ export async function embed(texts: string[]): Promise<number[][]> {
   return out;
 }
 
-const FALLBACK_MODEL = "gemini-3.8-flash"; // used when the NVIDIA model has been retired
+const FALLBACK_MODEL = "gemini-3.1-flash-lite"; // used when the NVIDIA model has been retired
 
 type Target = { client: OpenAI; model: string };
 const primary = (): Target => ({ client: chatApi(), model: chatModel() });
