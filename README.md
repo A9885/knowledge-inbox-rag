@@ -77,7 +77,8 @@ NVIDIA is about 3x faster to the first word, so it stays the default when a key 
 
 - `DEBUG=true` adds a `debug` object to answers (rewritten question, candidates with scores, timings) and a "Show details" toggle in the UI.
 - `npm run eval` (in `server/`) asks 13 questions (6 single, 2 follow-up chats, 3 not in the notes) and checks keywords, expected source and the not-found phrase. Current score: **13 / 13**. Baseline and notes: [`server/eval/baseline.md`](server/eval/baseline.md).
-- `npm test`: 53 server tests (SSRF, injection, relevance, fallback, edit/delete, pin, chunking, vector index, reindex).
+- Retrieval eval (`server/`): `DB_PATH=<scratch.db> npm run seed:people` loads 23 fake-person notes into a scratch DB; with a server running on that DB (`DEBUG=true`), `npm run eval:full -- --config configs/vector.json` scores 37 questions in 8 categories (Recall@3/5, MRR, Hit@1, keyword/citation accuracy, p50/p95 speed) into `server/eval/results/`. Vector-only: Recall@5 98%, MRR 0.95, Hit@1 91%, answers 97% correct, not-found 100%. Weak spots: "list everyone who..." questions (Recall@5 85%, answer keywords 75%) and citing every source when an answer uses several. `npm run eval:compare` diffs two reports.
+- `npm test`: 56 server tests (SSRF, injection, relevance, fallback, edit/delete, pin, chunking, vector index, reindex).
 
 ## Known limits
 
@@ -91,7 +92,7 @@ NVIDIA is about 3x faster to the first word, so it stays the default when a key 
 
 - Phase D ideas: review popup that proposes lasting facts when a chat closes (D1), email drafts that need confirmation (D2), local/both embedding modes (D3), answer cache with optional Redis (D4)
 - Smaller embedding sizes (1536/768 dims), LLM reranking
-- Hybrid keyword + vector search, query embedding cache, evaluation engine with Recall@k/MRR (planned in [`doc/DEVELOPMENT.md`](doc/DEVELOPMENT.md))
+- Hybrid keyword + vector search and a query embedding cache (planned in [`doc/DEVELOPMENT.md`](doc/DEVELOPMENT.md))
 - sqlite-vec, then pgvector (HNSW) or Qdrant for large data; job queue for ingestion
 - Structured fields + SQL filters for list/aggregate questions
 - Classifier-based injection detection; server-side action approval with audit log; auth and multi-user isolation

@@ -1,0 +1,425 @@
+[
+ {
+  "id": "sin01",
+  "question": "When is Meera Iyer's birthday?",
+  "category": "single_fact",
+  "expectItemIds": [
+   "Meera Iyer"
+  ],
+  "expectKeywords": [
+   "June 21"
+  ]
+ },
+ {
+  "id": "sin02",
+  "question": "What is Ishita Sen's hobby?",
+  "category": "single_fact",
+  "expectItemIds": [
+   "Ishita Sen"
+  ],
+  "expectKeywords": [
+   "speedrunning"
+  ]
+ },
+ {
+  "id": "sin03",
+  "question": "Which company does Vikram Desai work for?",
+  "category": "single_fact",
+  "expectItemIds": [
+   "Vikram Desai"
+  ],
+  "expectKeywords": [
+   "Bridgeline"
+  ]
+ },
+ {
+  "id": "sin04",
+  "question": "What pet does Zoya Khan have?",
+  "category": "single_fact",
+  "expectItemIds": [
+   "Zoya Khan"
+  ],
+  "expectKeywords": [
+   "parakeet"
+  ]
+ },
+ {
+  "id": "sin05",
+  "question": "What is Imran Sheikh's job?",
+  "category": "single_fact",
+  "expectItemIds": [
+   "Imran Sheikh"
+  ],
+  "expectKeywords": [
+   "chef"
+  ]
+ },
+ {
+  "id": "sin06",
+  "question": "Where does Tarun Joshi live?",
+  "category": "single_fact",
+  "expectItemIds": [
+   "Tarun Joshi"
+  ],
+  "expectKeywords": [
+   "Dehradun"
+  ]
+ },
+ {
+  "id": "sin07",
+  "question": "What is Farhan Ali's favourite food?",
+  "category": "single_fact",
+  "expectItemIds": [
+   "Farhan Ali"
+  ],
+  "expectKeywords": [
+   "galouti"
+  ]
+ },
+ {
+  "id": "sin08",
+  "question": "What is the name of Gautam Reddy's dog?",
+  "category": "single_fact",
+  "expectItemIds": [
+   "Gautam Reddy"
+  ],
+  "expectKeywords": [
+   "Tango"
+  ]
+ },
+ {
+  "id": "sin09",
+  "question": "Which instrument does Ananya Bose play?",
+  "category": "single_fact",
+  "expectItemIds": [
+   "Ananya Bose"
+  ],
+  "expectKeywords": [
+   "piano"
+  ]
+ },
+ {
+  "id": "sin10",
+  "question": "What does Lakshmi Pillai teach at?",
+  "category": "single_fact",
+  "expectItemIds": [
+   "Lakshmi Pillai"
+  ],
+  "expectKeywords": [
+   "Greenfield"
+  ]
+ },
+ {
+  "id": "two01",
+  "question": "Where do Aarav Mehta and Karan Malhotra live?",
+  "category": "two_entities",
+  "expectItemIds": [
+   "Aarav Mehta",
+   "Karan Malhotra"
+  ],
+  "expectKeywords": [
+   "Pune",
+   "Delhi"
+  ]
+ },
+ {
+  "id": "two02",
+  "question": "Which pets do Priya Nair and Divya Menon have?",
+  "category": "two_entities",
+  "expectItemIds": [
+   "Priya Nair",
+   "Divya Menon"
+  ],
+  "expectKeywords": [
+   "cat",
+   "cockatiel"
+  ]
+ },
+ {
+  "id": "two03",
+  "question": "What are the birthdays of Neha Kapoor and Vikram Desai?",
+  "category": "two_entities",
+  "expectItemIds": [
+   "Neha Kapoor",
+   "Vikram Desai"
+  ],
+  "expectKeywords": [
+   "December 19",
+   "February 18"
+  ]
+ },
+ {
+  "id": "two04",
+  "question": "Who works as a chef and who works as a dentist?",
+  "category": "two_entities",
+  "expectItemIds": [
+   "Imran Sheikh",
+   "Neha Kapoor"
+  ],
+  "expectKeywords": [
+   "Imran",
+   "Neha"
+  ]
+ },
+ {
+  "id": "lis01",
+  "question": "Which people live in Hyderabad?",
+  "category": "list_filter",
+  "expectItemIds": [
+   "Priya Nayar",
+   "Arjun Rao",
+   "Sana Qureshi"
+  ],
+  "expectKeywords": [
+   "Priya Nayar",
+   "Arjun Rao",
+   "Sana"
+  ]
+ },
+ {
+  "id": "lis02",
+  "question": "Who works at Quanta Works?",
+  "category": "list_filter",
+  "expectItemIds": [
+   "Arjun Rao",
+   "Sana Qureshi"
+  ],
+  "expectKeywords": [
+   "Arjun Rao",
+   "Sana"
+  ]
+ },
+ {
+  "id": "lis03",
+  "question": "Who has no pets?",
+  "category": "list_filter",
+  "expectItemIds": [
+   "Meera Iyer",
+   "Arjun Rai",
+   "Vikram Desai",
+   "Imran Sheikh",
+   "Farhan Ali"
+  ],
+  "expectKeywords": [
+   "Meera",
+   "Arjun Rai",
+   "Vikram",
+   "Imran",
+   "Farhan"
+  ]
+ },
+ {
+  "id": "lis04",
+  "question": "Who works at Pixelhive?",
+  "category": "list_filter",
+  "expectItemIds": [
+   "Rohan Gill",
+   "Ishita Sen"
+  ],
+  "expectKeywords": [
+   "Rohan",
+   "Ishita"
+  ]
+ },
+ {
+  "id": "key01",
+  "question": "Who has employee code EMP-4471?",
+  "category": "keywords_only",
+  "expectItemIds": [
+   "Priya Nair"
+  ],
+  "expectKeywords": [
+   "Priya Nair"
+  ]
+ },
+ {
+  "id": "key02",
+  "question": "EMP-8206",
+  "category": "keywords_only",
+  "expectItemIds": [
+   "Sana Qureshi"
+  ],
+  "expectKeywords": [
+   "Sana"
+  ]
+ },
+ {
+  "id": "key03",
+  "question": "Whose employee code is EMP-1451?",
+  "category": "keywords_only",
+  "expectItemIds": [
+   "Imran Sheikh"
+  ],
+  "expectKeywords": [
+   "Imran"
+  ]
+ },
+ {
+  "id": "key04",
+  "question": "Which employee is EMP-2163?",
+  "category": "keywords_only",
+  "expectItemIds": [
+   "Zoya Khan"
+  ],
+  "expectKeywords": [
+   "Zoya"
+  ]
+ },
+ {
+  "id": "cha01",
+  "question": "Where does Rohan Gill live now?",
+  "category": "changed_fact",
+  "expectItemIds": [
+   "UPDATE Rohan Gill"
+  ],
+  "expectKeywords": [
+   "Berlin"
+  ]
+ },
+ {
+  "id": "cha02",
+  "question": "What is Sana Qureshi's current job title?",
+  "category": "changed_fact",
+  "expectItemIds": [
+   "UPDATE Sana Qureshi"
+  ],
+  "expectKeywords": [
+   "head of product"
+  ]
+ },
+ {
+  "id": "cha03",
+  "question": "Where does Neha Kapoor work these days?",
+  "category": "changed_fact",
+  "expectItemIds": [
+   "UPDATE Neha Kapoor"
+  ],
+  "expectKeywords": [
+   "BrightBite"
+  ]
+ },
+ {
+  "id": "sim01",
+  "question": "Where does Priya Nayar live?",
+  "category": "similar_names",
+  "expectItemIds": [
+   "Priya Nayar"
+  ],
+  "expectKeywords": [
+   "Hyderabad"
+  ]
+ },
+ {
+  "id": "sim02",
+  "question": "What does Priya Nair do for work?",
+  "category": "similar_names",
+  "expectItemIds": [
+   "Priya Nair"
+  ],
+  "expectKeywords": [
+   "marine"
+  ]
+ },
+ {
+  "id": "sim03",
+  "question": "Which company does Arjun Rai work for?",
+  "category": "similar_names",
+  "expectItemIds": [
+   "Arjun Rai"
+  ],
+  "expectKeywords": [
+   "Terracotta"
+  ]
+ },
+ {
+  "id": "sim04",
+  "question": "What is Arjun Rao's pet called?",
+  "category": "similar_names",
+  "expectItemIds": [
+   "Arjun Rao"
+  ],
+  "expectKeywords": [
+   "Zeus"
+  ]
+ },
+ {
+  "id": "not01",
+  "question": "What is Aarav Mehta's passport number?",
+  "category": "not_found",
+  "expectItemIds": [],
+  "expectKeywords": [],
+  "expectNotFound": true
+ },
+ {
+  "id": "not02",
+  "question": "Where does Dhruv Wadhwa live?",
+  "category": "not_found",
+  "expectItemIds": [],
+  "expectKeywords": [],
+  "expectNotFound": true
+ },
+ {
+  "id": "not03",
+  "question": "What is Meera Iyer's salary?",
+  "category": "not_found",
+  "expectItemIds": [],
+  "expectKeywords": [],
+  "expectNotFound": true
+ },
+ {
+  "id": "not04",
+  "question": "Who is the CEO of Quanta Works?",
+  "category": "not_found",
+  "expectItemIds": [],
+  "expectKeywords": [],
+  "expectNotFound": true
+ },
+ {
+  "id": "fol01",
+  "question": "What is Karan Malhotra's job?",
+  "category": "follow_up",
+  "expectItemIds": [
+   "Karan Malhotra"
+  ],
+  "expectKeywords": [
+   "journalist"
+  ],
+  "conversation": "a"
+ },
+ {
+  "id": "fol02",
+  "question": "And what pet does he have?",
+  "category": "follow_up",
+  "expectItemIds": [
+   "Karan Malhotra"
+  ],
+  "expectKeywords": [
+   "husky"
+  ],
+  "conversation": "a"
+ },
+ {
+  "id": "fol03",
+  "question": "Where does Divya Menon live?",
+  "category": "follow_up",
+  "expectItemIds": [
+   "Divya Menon"
+  ],
+  "expectKeywords": [
+   "Bengaluru"
+  ],
+  "conversation": "b"
+ },
+ {
+  "id": "fol04",
+  "question": "When is her birthday?",
+  "category": "follow_up",
+  "expectItemIds": [
+   "Divya Menon"
+  ],
+  "expectKeywords": [
+   "January 31"
+  ],
+  "conversation": "b"
+ }
+]

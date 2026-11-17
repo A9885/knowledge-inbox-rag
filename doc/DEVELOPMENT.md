@@ -297,7 +297,7 @@ Order: C1 reindex → C2 chunking → C3 vector optimization → C4 hybrid retri
 - Note: the relevance filter (A3) uses cosine scores, so keep the vector score on each candidate and apply the window to it, not to the RRF score.
 - Tests: keyword-only match is found; RRF merge order; multi-topic split; FTS stays in sync on PATCH/DELETE.
 
-### C5. Evaluation engine ⬜ (~1.5 h, run after C1–C4)
+### C5. Evaluation engine ✅ (built before C4 so C4 can be compared against it)
 - **Dataset:** `eval/datasets/<name>.json`, one entry per question:
   `{ id, question, category, expectItemIds, expectKeywords, expectNotFound? }`
   - Categories: `single_fact`, `two_entities`, `list_filter`, `keywords_only`, `changed_fact`, `similar_names`, `not_found`, `follow_up`.
@@ -316,7 +316,7 @@ Run each config and fill in the table for the README:
 | Config | Recall@5 | MRR | Answer acc. | Not-found ok | First word p50 | Total p50 |
 |--------|----------|-----|-------------|--------------|----------------|-----------|
 | Vector, old chunking | | | | | | |
-| Vector, smart chunking | | | | | | |
+| Vector, smart chunking | 98% | 0.95 | 97% | 100% | 937 ms | 2445 ms |
 | Hybrid RRF | | | | | | |
 | Hybrid weighted | | | | | | |
 | **Chosen default** | | | | | | |
@@ -447,7 +447,8 @@ HYBRID_FUSION=rrf            # rrf | weighted
 | Time to first word | 0.3–0.5 s (benchmark); 12.5 s measured on 2026-11-18, provider slow that day | 323 ms median NVIDIA laguna, 1057 ms Gemini 3.1-flash-lite (`server/eval/latency.md`, 5 runs) |
 | Time to save a URL | 6.8 s | |
 | Search time (current data) | about 0.7 ms (7 ms cold in the debug panel: reload from SQLite + cosine, 78 chunks x 3072d) | 0.2 ms (78 chunks x 3072d); 19 ms at 10,000 chunks (synthetic, same dims) |
-| Server tests | 20 | 53 (after C2) |
+| Server tests | 20 | 56 (after C5) |
+| Retrieval quality, vector only (37 fake-people questions, `eval/results/2026-11-18-vector.md`) | n/a | Recall@3 98%, Recall@5 98%, MRR 0.95, Hit@1 91%; keyword acc 97%, citation acc 87%, not-found 100%. Weak: list_filter (Recall@5 85%, Hit@1 50%, keyword acc 75%, citation 33%), two_entities citation (63%) |
 
 ## 9. Change log
 
@@ -474,6 +475,7 @@ HYBRID_FUSION=rrf            # rrf | weighted
 - Latency re-benchmark (`server/eval/latency.md`): NVIDIA laguna 306/323/582 ms first token (min/median/max), Gemini 3.1-flash-lite 871/1057/1189, 3.5-flash-lite 700/1548/2747, 3.8-flash timed out / 503. Gemini not faster, so NVIDIA stays the default when its key is set
 - Phase E: moved 768 dims and rerank to future work; README rewritten (E1); fresh-clone test (E3) found that with only `GEMINI_API_KEY` the zero-setup answer model `gemini-3.8-flash` hung/503, so the Gemini default and A5 fallback are now `gemini-3.1-flash-lite` (eval 13/13 on a scratch server, Gemini only); after that the fresh clone ingested and answered with citations; secrets scan of all history clean, `.env` and `data/*.db` git-ignored (E4)
 - B4 chat bar: mode select (Ask / Save note / Save URL), `/note` and `/url` commands with a hint, `guessIntent` chips (URL: Save link / Ask; note: Save note), "Saved to inbox" confirmation with View and Undo (Undo = `DELETE /items/:id`), inline red errors, list refreshes. Client only, reuses `POST /ingest`. Confirmations are client state (`ChatNotices`) and never sent anywhere: chat history comes from the server's stored messages. `client/tests/intent.test.ts` runs with `node --test` (no new dependency)
+- C5 evaluation engine: `eval/datasets/people.json` (37 questions, 8 categories) over 23 fake-person notes (`people-notes.json`, seeded into a scratch DB by `npm run seed:people`, which refuses the live DB path); `npm run eval:full -- --config configs/vector.json` (retrieval metrics in-process, answers via API; follow-up turns search with the server's rewritten question, so run the scratch server with `DEBUG=true`), report in `eval/results/<date>-<config>.md` + `.json`, `npm run eval:compare -- a.md b.md`; 3 metric tests. Config shape `{name, dataset, retrieval:{mode,topK}, answers}` is ready for `hybrid` (rejected until C4). `expectItemIds` hold person names / `UPDATE <name>` and match the start of the item title, not database ids. Vector-only result: Recall@5 98%, MRR 0.95, Hit@1 91%, keyword 97%, citation 87%, not-found 100%; weak categories are list_filter and multi-source citations
 - _One line per finished task, e.g. "A1 SSRF guard: blocks private IPs, 4 new tests"_
 
 ## 10. Future work (README, if not built)

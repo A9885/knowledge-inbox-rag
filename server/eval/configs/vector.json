@@ -1,0 +1,6 @@
+{
+  "name": "vector",
+  "dataset": "people",
+  "retrieval": { "mode": "vector", "topK": 5 },
+  "answers": true
+}
