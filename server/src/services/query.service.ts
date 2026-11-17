@@ -27,6 +27,7 @@ const toSource = (c: ScoredChunk, ref: number, cited: boolean) => ({
   sourceUrl: c.sourceUrl,
   snippet: c.content.slice(0, SNIPPET_CHARS),
   score: Math.round(c.score * 100) / 100,
+  flagged: c.flagged,
   cited,
 });
 

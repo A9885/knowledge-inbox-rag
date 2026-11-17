@@ -18,6 +18,7 @@ export interface Source {
   sourceUrl: string | null;
   snippet: string;
   score: number;
+  flagged?: boolean;
   cited: boolean;
 }
 

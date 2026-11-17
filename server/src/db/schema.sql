@@ -14,7 +14,8 @@ CREATE TABLE IF NOT EXISTS chunks (
   item_id      TEXT NOT NULL REFERENCES items(id) ON DELETE CASCADE,
   chunk_index  INTEGER NOT NULL,
   content      TEXT NOT NULL,
-  embedding    BLOB NOT NULL                -- Float32Array bytes
+  embedding    BLOB NOT NULL,               -- Float32Array bytes
+  flagged      INTEGER NOT NULL DEFAULT 0   -- 1 = looks like a prompt injection
 );
 
 CREATE INDEX IF NOT EXISTS idx_chunks_item ON chunks(item_id);

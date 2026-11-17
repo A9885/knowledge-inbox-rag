@@ -122,7 +122,7 @@ Write the eval score, average time to first word, and time to save a URL in `eva
   - `http://localhost`, `http://127.0.0.1` and `http://192.168.1.1` → 422
   - a public URL (mocked) passes
 
-### A2. Prompt-injection safety ⬜
+### A2. Prompt-injection safety ✅
 - **Prompt (`rag/prompt.ts`):** wrap each chunk like this:
   ```
   <source id="1" type="url" title="..." saved="2026-11-18">
@@ -352,6 +352,7 @@ MEMORY_REVIEW_ENABLED=true
 - Phase 0: eval set (13 questions), `npm run eval`, baseline 13/13, `DEBUG=true` debug field + "Show details" panel
 - Fixed A5 note: config name is `CHAT_MODEL`, Gemini fallback `gemini-3.8-flash`
 - A1 SSRF guard: private/loopback/link-local ranges, localhost, non-http schemes and redirect targets (max 3) blocked with 422 URL_NOT_ALLOWED; 12 new tests (32 total)
+- A2 prompt-injection safety: `<source>` tags (id, type, title, saved date), tag stripping, system-prompt rule, `chunks.flagged` (ALTER TABLE migration, data kept), `lib/injection.ts`, ⚠ badge, `rel="noopener noreferrer"`; 2 new tests. Also added a Goa example to the rewrite prompt: the model had started dropping the topic from "and where is the hotel?" (eval 12/13)
 - _One line per finished task, e.g. "A1 SSRF guard: blocks private IPs, 4 new tests"_
 
 ## 10. Future work (README, if not built)

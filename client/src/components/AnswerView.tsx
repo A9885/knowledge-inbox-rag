@@ -93,10 +93,11 @@ export function AnswerView({ idPrefix, expandSources = false, answer, sources, s
                   <span className="shrink-0 text-xs text-slate-500">{s.score.toFixed(2)}</span>
                 </div>
                 {s.sourceUrl && (
-                  <a href={s.sourceUrl} target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline">
+                  <a href={s.sourceUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline">
                     {shortLink(s.sourceUrl)} ↗
                   </a>
                 )}
+                {s.flagged && <p className="mt-1 text-xs font-medium text-amber-700">⚠ contains instruction-like text</p>}
                 <p className="mt-1 text-slate-600">{s.snippet}</p>
               </li>
             ))}
