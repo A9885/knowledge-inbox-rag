@@ -10,6 +10,8 @@ const schema = z.object({
   EMBEDDING_MODEL: z.string().default("gemini-embedding-001"),
   NVIDIA_API_KEY: z.string().optional(), // if set, chat goes to NVIDIA NIM instead of Gemini
   CHAT_MODEL: z.string().optional(),
+  RELEVANCE_WINDOW: z.coerce.number().default(0.12), // keep chunks within this of the best score...
+  RELEVANCE_HIGH_SCORE: z.coerce.number().default(0.6), // ...or at least this similar, whatever the best is
   DEBUG: z.enum(["true", "false"]).default("false").transform((v) => v === "true"),
   LOG_LEVEL: z.string().default("info"),
 });
