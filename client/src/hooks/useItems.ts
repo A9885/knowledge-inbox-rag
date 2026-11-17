@@ -27,5 +27,15 @@ export function useItems() {
     setItems((prev) => [item, ...prev]);
   };
 
-  return { items, loading, error, refresh, addItem };
+  const editItem = async (id: string, content: string) => {
+    const item = await api.editItem(id, content);
+    setItems((prev) => prev.map((i) => (i.id === id ? item : i)));
+  };
+
+  const removeItem = async (id: string) => {
+    await api.deleteItem(id);
+    setItems((prev) => prev.filter((i) => i.id !== id));
+  };
+
+  return { items, loading, error, refresh, addItem, editItem, removeItem };
 }

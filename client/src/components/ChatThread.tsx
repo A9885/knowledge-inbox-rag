@@ -1,19 +1,25 @@
 import { useEffect, useRef } from "react";
 import type { Draft } from "../hooks/useChats";
-import type { Message } from "../types";
+import type { Item, Message } from "../types";
 import { AnswerView } from "./AnswerView";
 
 interface Props {
   messages: Message[];
   draft: Draft | null;
   onSuggest: (q: string) => void;
+  items: Item[];
+  onOpenItem: (id: string) => void;
 }
 
 const Question = ({ text }: { text: string }) => (
   <div className="ml-auto max-w-[85%] rounded-lg bg-blue-600 px-3 py-2 text-sm text-white">{text}</div>
 );
 
-export function ChatThread({ messages, draft, onSuggest }: Props) {
+/** Items whose text changed after this answer was written: its quoted snippets may be outdated. */
+const editedSince = (m: Message, items: Item[]) =>
+  new Set(m.createdAt ? items.filter((i) => i.updatedAt > m.createdAt!).map((i) => i.id) : []);
+
+export function ChatThread({ messages, draft, onSuggest, items, onOpenItem }: Props) {
   const end = useRef<HTMLDivElement>(null);
   useEffect(() => {
     end.current?.scrollIntoView({ block: "end" }); // braces: an effect must not return scrollIntoView's value
@@ -34,6 +40,8 @@ export function ChatThread({ messages, draft, onSuggest }: Props) {
             answer={m.content}
             sources={m.sources}
             debug={m.debug}
+            editedItems={editedSince(m, items)}
+            onOpenItem={onOpenItem}
             suggestions={i === messages.length - 1 ? m.suggestions : []}
             expandSources={i === messages.length - 1}
             onSuggest={onSuggest}

@@ -6,10 +6,12 @@ import { ChatThread } from "./components/ChatThread";
 import { AskBox } from "./components/AskBox";
 import { ErrorBanner } from "./components/ErrorBanner";
 import { IngestForm } from "./components/IngestForm";
+import { ItemPanel } from "./components/ItemPanel";
 import { ItemList } from "./components/ItemList";
 
 export default function App() {
-  const { items, loading, error, addItem } = useItems();
+  const { items, loading, error, addItem, editItem, removeItem } = useItems();
+  const [panel, setPanel] = useState<{ id: string; edit: boolean } | null>(null);
   const chats = useChats();
   const [question, setQuestion] = useState("");
   const run = (q: string) => {
@@ -25,15 +27,18 @@ export default function App() {
         <div className="space-y-6">
           <IngestForm onSave={addItem} />
           <ErrorBanner message={error} />
-          <ItemList items={items} loading={loading} />
+          <ItemList items={items} loading={loading} onOpen={(id, edit) => setPanel({ id, edit })} onDelete={removeItem} />
         </div>
         <div className="space-y-2">
           <ChatTabs tabs={chats.tabs} activeId={chats.activeId} disabled={chats.loading} onOpen={chats.open} onClose={chats.close} />
           <ErrorBanner message={chats.error} />
-          <ChatThread messages={chats.messages} draft={chats.draft} onSuggest={run} />
+          <ChatThread messages={chats.messages} draft={chats.draft} onSuggest={run} items={items} onOpenItem={(id) => setPanel({ id, edit: false })} />
           <AskBox value={question} onChange={setQuestion} onAsk={run} loading={chats.loading} />
         </div>
       </main>
+      {panel && (
+        <ItemPanel key={panel.id} itemId={panel.id} startEditing={panel.edit} onClose={() => setPanel(null)} onEdit={editItem} onDelete={removeItem} />
+      )}
     </div>
   );
 }

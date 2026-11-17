@@ -17,7 +17,7 @@ export interface StoredChunk {
   sourceUrl: string | null;
   content: string;
   flagged: boolean;
-  savedAt: string;
+  updatedAt: string;
   embedding: Float32Array;
 }
 
@@ -34,7 +34,7 @@ export function loadAllChunks(): StoredChunk[] {
   const rows = db
     .prepare(
       `SELECT c.id AS chunkId, c.item_id AS itemId, i.title, i.source_type AS type,
-              i.source_url AS sourceUrl, c.content, c.embedding, c.flagged, i.created_at AS savedAt
+              i.source_url AS sourceUrl, c.content, c.embedding, c.flagged, COALESCE(i.updated_at, i.created_at) AS updatedAt
        FROM chunks c JOIN items i ON i.id = c.item_id WHERE i.status = 'ready'`,
     )
     .all() as (Omit<StoredChunk, "embedding" | "flagged"> & { embedding: Buffer; flagged: number })[];
@@ -45,3 +45,6 @@ export function loadAllChunks(): StoredChunk[] {
     embedding: new Float32Array(r.embedding.buffer.slice(r.embedding.byteOffset, r.embedding.byteOffset + r.embedding.byteLength)),
   }));
 }
+
+export const deleteChunksOfItem = (itemId: string): void =>
+  void db.prepare("DELETE FROM chunks WHERE item_id = ?").run(itemId);

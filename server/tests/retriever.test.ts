@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 // Unit vectors at a chosen cosine to the query [1, 0].
 const at = (cos: number) => new Float32Array([cos, Math.sqrt(1 - cos * cos)]);
-const chunk = (title: string, cos: number) => ({ chunkId: title, itemId: title, title, type: "note", sourceUrl: null, content: title, flagged: false, savedAt: "", embedding: at(cos) });
+const chunk = (title: string, cos: number) => ({ chunkId: title, itemId: title, title, type: "note", sourceUrl: null, content: title, flagged: false, updatedAt: "", embedding: at(cos) });
 const stored = [chunk("best", 0.82), chunk("second", 0.65), chunk("meh", 0.55), chunk("noise", 0.3)];
 vi.mock("../src/db/chunks.repository.js", () => ({ loadAllChunks: () => stored }));
 

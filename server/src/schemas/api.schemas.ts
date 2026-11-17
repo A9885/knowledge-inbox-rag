@@ -14,6 +14,8 @@ const isHttpUrl = (s: string) => {
   }
 };
 
+export const editSchema = z.object({ content });
+
 export const ingestSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("note"), content }),
   z.object({ type: z.literal("url"), content: content.refine(isHttpUrl, "content must be a valid http(s) URL") }),

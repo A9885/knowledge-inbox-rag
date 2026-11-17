@@ -6,7 +6,8 @@ CREATE TABLE IF NOT EXISTS items (
   raw_content  TEXT NOT NULL,
   status       TEXT NOT NULL DEFAULT 'ready' CHECK (status IN ('processing','ready','failed')),
   error        TEXT,
-  created_at   TEXT NOT NULL                -- ISO timestamp
+  created_at   TEXT NOT NULL,               -- ISO timestamp
+  updated_at   TEXT                         -- set on edit; null/old rows fall back to created_at
 );
 
 CREATE TABLE IF NOT EXISTS chunks (

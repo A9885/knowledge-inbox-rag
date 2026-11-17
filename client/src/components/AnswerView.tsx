@@ -44,10 +44,12 @@ interface Props {
   sources: Source[];
   suggestions: string[];
   debug?: Debug;
+  editedItems: Set<string>;
+  onOpenItem: (id: string) => void;
   onSuggest: (q: string) => void;
 }
 
-export function AnswerView({ idPrefix, expandSources = false, answer, sources, suggestions, debug, onSuggest }: Props) {
+export function AnswerView({ idPrefix, expandSources = false, answer, sources, suggestions, debug, editedItems, onOpenItem, onSuggest }: Props) {
   const uncited = sources.length > 0 && !sources[0].cited;
   return (
     <div className="space-y-4">
@@ -87,9 +89,9 @@ export function AnswerView({ idPrefix, expandSources = false, answer, sources, s
             {sources.map((s) => (
               <li key={s.chunkId} id={`${idPrefix}-source-${s.ref}`} className="rounded border border-slate-200 bg-white p-2 text-sm">
                 <div className="flex justify-between gap-2">
-                  <span className="font-medium">
+                  <button onClick={() => onOpenItem(s.itemId)} className="text-left font-medium hover:underline">
                     [{s.ref}] {s.title}
-                  </span>
+                  </button>
                   <span className="shrink-0 text-xs text-slate-500">{s.score.toFixed(2)}</span>
                 </div>
                 {s.sourceUrl && (
@@ -97,6 +99,7 @@ export function AnswerView({ idPrefix, expandSources = false, answer, sources, s
                     {shortLink(s.sourceUrl)} ↗
                   </a>
                 )}
+                {editedItems.has(s.itemId) && <p className="mt-1 text-xs font-medium text-amber-700">⚠ note edited since</p>}
                 {s.flagged && <p className="mt-1 text-xs font-medium text-amber-700">⚠ contains instruction-like text</p>}
                 <p className="mt-1 text-slate-600">{s.snippet}</p>
               </li>

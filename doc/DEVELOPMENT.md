@@ -168,7 +168,7 @@ Write the eval score, average time to first word, and time to save a URL in `eva
 
 ## Phase B — High
 
-### B1. Edit & delete notes ⬜
+### B1. Edit & delete notes ✅
 - Add `items.updated_at TEXT`, defaulting to `created_at`.
 - `PATCH /items/:id` takes `{ content }`, validated like ingest.
   - Only `note`, `chat` and `memory` items can be edited. A URL returns `409 NOT_EDITABLE` ("re-add the URL instead").
@@ -356,6 +356,7 @@ MEMORY_REVIEW_ENABLED=true
 - A3 relevance filter: keep `score >= best - RELEVANCE_WINDOW` or `>= RELEVANCE_HIGH_SCORE` (both in config); debug reason `high_score`; 2 new tests
 - A4 suggestion filter (`services/suggestions.ts`): one batched embedding, keep best-chunk score >= 0.5, any failure → no suggestions; 2 new tests, 2 existing assertions updated (mock suggestions made realistic)
 - A5 model fallback: NVIDIA 404/410 → logs `llm.model_unavailable`, retries once on Gemini `gemini-3.8-flash`; streams switch silently only before the first token; 4 new tests
+- B1 edit & delete: `items.updated_at` (ALTER + backfill in `db/migrate.ts`), `PATCH`/`DELETE`/`GET /items/:id`, embed outside the transaction, sources and messages carry dates, "note edited since" warning, item panel with edit/delete; 3 new tests. Extra: `GET /items/:id` (full text for the edit box)
 - _One line per finished task, e.g. "A1 SSRF guard: blocks private IPs, 4 new tests"_
 
 ## 10. Future work (README, if not built)

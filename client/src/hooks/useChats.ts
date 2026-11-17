@@ -70,8 +70,8 @@ export function useChats() {
       const key = crypto.randomUUID();
       setMessages((m) => [
         ...m,
-        { id: `${key}-q`, role: "user", content: question, sources: [], suggestions: [] },
-        { id: `${key}-a`, role: "assistant", content: r.answer, sources: r.sources, suggestions: r.suggestions, debug: r.debug },
+        { id: `${key}-q`, role: "user", content: question, sources: [], suggestions: [], createdAt: new Date().toISOString() },
+        { id: `${key}-a`, role: "assistant", content: r.answer, sources: r.sources, suggestions: r.suggestions, createdAt: new Date().toISOString(), debug: r.debug },
       ]);
       setTabs(await api.listConversations()); // picks up the new tab / title / order
     } catch (e) {

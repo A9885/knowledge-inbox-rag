@@ -25,7 +25,7 @@ export function buildUserMessage(question: string, chunks: ScoredChunk[]): strin
     .map((c, i) => {
       const attr = (v: string) => v.replace(/["<>\n]/g, " ");
       const text = c.content.replace(/<\/?source/gi, ""); // a chunk must not be able to close or open a source tag
-      return `<source id="${i + 1}" type="${c.type}" title="${attr(c.title)}" saved="${c.savedAt.slice(0, 10)}">\n${text}\n</source>`;
+      return `<source id="${i + 1}" type="${c.type}" title="${attr(c.title)}" saved="${c.updatedAt.slice(0, 10)}">\n${text}\n</source>`;
     })
     .join("\n\n");
   return `Context:\n${ctx}\n\nQuestion: ${question}`;
