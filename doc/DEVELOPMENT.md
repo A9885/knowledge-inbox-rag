@@ -200,7 +200,7 @@ Write the eval score, average time to first word, and time to save a URL in `eva
 
 ## Phase C — Medium
 
-### C0. Reindex script ⬜ (needed by C1 and D3)
+### C0. Reindex script ✅ (needed by C1 and D3)
 - `npm run reindex` re-chunks and re-embeds every item.
 - Embedding happens outside the transaction, and each item is replaced in its own transaction, so the script is safe to run again after a failure.
 - It logs `reindex.item_done` and `reindex.done`.
@@ -359,6 +359,7 @@ MEMORY_REVIEW_ENABLED=true
 - B1 edit & delete: `items.updated_at` (ALTER + backfill in `db/migrate.ts`), `PATCH`/`DELETE`/`GET /items/:id`, embed outside the transaction, sources and messages carry dates, "note edited since" warning, item panel with edit/delete; 3 new tests. Extra: `GET /items/:id` (full text for the edit box)
 - B2 pin to inbox: ingest `type: "chat"`, `items.conversation_id` / `message_id` (unique), 409 ALREADY_SAVED, only the user's own messages can be pinned (404 otherwise); items table rebuilt in `db/migrate.ts` (SQLite can't alter a CHECK) with foreign keys off, verified on scratch copies (all items and chunks kept); 📌 on user messages, item icons; 1 new test. The chat now reloads messages after each answer so it has their server ids
 - B3 dated sources: `saved=` is the item's `updated_at` (wired in B1), system prompt says newest wins and to mention the change; 1 new test
+- C0 reindex: `npm run reindex` (`services/reindex.service.ts`), embed outside the transaction, one transaction per item, a failed item keeps its old chunks, logs `reindex.item_done` / `reindex.done`; 1 new test; run on a scratch copy only
 - _One line per finished task, e.g. "A1 SSRF guard: blocks private IPs, 4 new tests"_
 
 ## 10. Future work (README, if not built)

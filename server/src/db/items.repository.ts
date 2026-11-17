@@ -54,5 +54,8 @@ export const updateItem = (id: string, title: string, rawContent: string, update
 /** Chunks go with it (ON DELETE CASCADE). */
 export const deleteItem = (id: string): boolean => db.prepare("DELETE FROM items WHERE id = ?").run(id).changes > 0;
 
+export const listItemTexts = (): { id: string; title: string; rawContent: string }[] =>
+  db.prepare("SELECT id, title, raw_content AS rawContent FROM items ORDER BY created_at").all() as never;
+
 export const messageAlreadySaved = (messageId: string): boolean =>
   db.prepare("SELECT 1 FROM items WHERE message_id = ?").get(messageId) !== undefined;

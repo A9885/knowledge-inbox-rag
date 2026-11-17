@@ -6,7 +6,7 @@ import { getItem, insertItem, messageAlreadySaved, type ItemDto } from "../db/it
 import { AppError } from "../lib/errors.js";
 import { fetchPage } from "../lib/fetchUrl.js";
 import { log } from "../lib/logger.js";
-import { noteTitle, prepareChunks } from "./prepare.js";
+import { noteTitle, prepareChunks, toNewChunks } from "./prepare.js";
 
 type Input =
   | { type: "note" | "url"; content: string }
@@ -35,7 +35,8 @@ export async function ingest(input: Input): Promise<ItemDto> {
     text = content;
   }
 
-  const { pieces, vectors, flags } = await prepareChunks(text);
+  const prepared = await prepareChunks(text);
+  const { pieces, flags } = prepared;
 
   const id = randomUUID();
   try {
@@ -49,9 +50,7 @@ export async function ingest(input: Input): Promise<ItemDto> {
         createdAt: new Date().toISOString(),
         ...pin,
       });
-      insertChunks(
-        pieces.map((c, index) => ({ id: randomUUID(), itemId: id, index, content: c, embedding: vectors[index], flagged: flags[index] })),
-      );
+      insertChunks(toNewChunks(id, prepared));
     });
   } catch (e) {
     if ((e as { code?: string }).code === "SQLITE_CONSTRAINT_UNIQUE") throw alreadySaved(); // two pins raced past checkPin

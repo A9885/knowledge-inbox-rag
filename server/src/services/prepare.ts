@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { chunkText } from "../rag/chunker.js";
 import { embedMany } from "../rag/embedder.js";
 import { looksLikeInjection } from "../lib/injection.js";
@@ -12,3 +13,8 @@ export async function prepareChunks(text: string) {
   const vectors = await embedMany(pieces);
   return { pieces, vectors, flags: pieces.map(looksLikeInjection) };
 }
+
+type Prepared = Awaited<ReturnType<typeof prepareChunks>>;
+
+export const toNewChunks = (itemId: string, p: Prepared) =>
+  p.pieces.map((content, index) => ({ id: randomUUID(), itemId, index, content, embedding: p.vectors[index], flagged: p.flags[index] }));

@@ -1,10 +1,9 @@
 import { inTransaction } from "../db/connection.js";
 import { deleteChunksOfItem, insertChunks } from "../db/chunks.repository.js";
 import { deleteItem, getItem, getItemContent, updateItem, type ItemDto } from "../db/items.repository.js";
-import { randomUUID } from "node:crypto";
 import { AppError } from "../lib/errors.js";
 import { log } from "../lib/logger.js";
-import { noteTitle, prepareChunks } from "./prepare.js";
+import { noteTitle, prepareChunks, toNewChunks } from "./prepare.js";
 
 const notFound = () => new AppError("ITEM_NOT_FOUND", 404, "Item not found");
 
@@ -19,13 +18,13 @@ export async function editItem(id: string, content: string): Promise<ItemDto> {
   const item = getItem(id);
   if (!item) throw notFound();
   if (item.type === "url") throw new AppError("NOT_EDITABLE", 409, "URLs can't be edited; re-add the URL instead");
-  const { pieces, vectors, flags } = await prepareChunks(content);
+  const prepared = await prepareChunks(content);
   inTransaction(() => {
     deleteChunksOfItem(id);
-    insertChunks(pieces.map((c, index) => ({ id: randomUUID(), itemId: id, index, content: c, embedding: vectors[index], flagged: flags[index] })));
+    insertChunks(toNewChunks(id, prepared));
     updateItem(id, noteTitle(content), content, new Date().toISOString());
   });
-  log.info({ itemId: id, chunkCount: pieces.length }, "item.updated");
+  log.info({ itemId: id, chunkCount: prepared.pieces.length }, "item.updated");
   return getItem(id)!;
 }
 
