@@ -205,7 +205,7 @@ Write the eval score, average time to first word, and time to save a URL in `eva
 - Embedding happens outside the transaction, and each item is replaced in its own transaction, so the script is safe to run again after a failure.
 - It logs `reindex.item_done` and `reindex.done`.
 
-### C1. Smarter chunking (`rag/chunker.ts`) ⬜
+### C1. Smarter chunking (`rag/chunker.ts`) ✅
 - **URLs:** split by `h1`–`h3` sections from the Readability HTML. Never mix sections in one chunk; start each chunk with `"<heading>: "`.
 - **Within a section:** pack sentences up to about 2000 characters, overlapping the last 2 sentences between chunks.
 - **Tiny chunks:** merge chunks under 200 characters into their neighbour.
@@ -360,6 +360,7 @@ MEMORY_REVIEW_ENABLED=true
 - B2 pin to inbox: ingest `type: "chat"`, `items.conversation_id` / `message_id` (unique), 409 ALREADY_SAVED, only the user's own messages can be pinned (404 otherwise); items table rebuilt in `db/migrate.ts` (SQLite can't alter a CHECK) with foreign keys off, verified on scratch copies (all items and chunks kept); 📌 on user messages, item icons; 1 new test. The chat now reloads messages after each answer so it has their server ids
 - B3 dated sources: `saved=` is the item's `updated_at` (wired in B1), system prompt says newest wins and to mention the change; 1 new test
 - C0 reindex: `npm run reindex` (`services/reindex.service.ts`), embed outside the transaction, one transaction per item, a failed item keeps its old chunks, logs `reindex.item_done` / `reindex.done`; 1 new test; run on a scratch copy only
+- C1 smarter chunking: sections (URL h1-h3 kept as `# heading` lines in the saved text, notes can use them too) never mix, `"<heading>: "` prefix, sentence packing with 2-sentence overlap, tiny chunks (<200) merged into the previous one (may run up to 200 over 2000), `"<title> — <chunk>"` embedded but only the chunk stored. Gate on a scratch copy after `npm run reindex`: eval 13/13 (22 → 20 chunks). **The live DB needs `npm run reindex` after merging** (old and new chunks coexist until then). Old URL items have no heading lines, so they chunk by sentences only until the URL is re-added. 7 chunker tests (overlap test rewritten for sentence overlap), 1 new fetch test
 - _One line per finished task, e.g. "A1 SSRF guard: blocks private IPs, 4 new tests"_
 
 ## 10. Future work (README, if not built)

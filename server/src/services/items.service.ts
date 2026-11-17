@@ -18,7 +18,7 @@ export async function editItem(id: string, content: string): Promise<ItemDto> {
   const item = getItem(id);
   if (!item) throw notFound();
   if (item.type === "url") throw new AppError("NOT_EDITABLE", 409, "URLs can't be edited; re-add the URL instead");
-  const prepared = await prepareChunks(content);
+  const prepared = await prepareChunks(content, noteTitle(content));
   inTransaction(() => {
     deleteChunksOfItem(id);
     insertChunks(toNewChunks(id, prepared));

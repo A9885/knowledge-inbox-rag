@@ -35,7 +35,7 @@ export async function ingest(input: Input): Promise<ItemDto> {
     text = content;
   }
 
-  const prepared = await prepareChunks(text);
+  const prepared = await prepareChunks(text, title);
   const { pieces, flags } = prepared;
 
   const id = randomUUID();

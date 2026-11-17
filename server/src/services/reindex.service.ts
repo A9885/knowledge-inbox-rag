@@ -16,7 +16,7 @@ export async function reindexAll(): Promise<{ items: number; failed: number }> {
   for (const it of items) {
     const t = Date.now();
     try {
-      const prepared = await prepareChunks(it.rawContent);
+      const prepared = await prepareChunks(it.rawContent, it.title);
       inTransaction(() => {
         deleteChunksOfItem(it.id);
         insertChunks(toNewChunks(it.id, prepared));

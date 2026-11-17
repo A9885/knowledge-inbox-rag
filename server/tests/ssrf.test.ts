@@ -47,3 +47,13 @@ describe("SSRF guard", () => {
     await expect(fetchPage("https://example.com/a")).rejects.toMatchObject({ code: "URL_FETCH_FAILED" });
   });
 });
+
+describe("page text", () => {
+  it("keeps h1-h3 as '# heading' lines for the chunker", async () => {
+    const body = `<html><head><title>T</title></head><body><article><h2>Getting started</h2><p>${"First section text here. ".repeat(6)}</p><h3>Next steps</h3><p>${"Second section text here. ".repeat(6)}</p></article></body></html>`;
+    fetchMock.mockImplementationOnce(async () => new Response(body, { headers: { "content-type": "text/html" } }));
+    const { text } = await fetchPage("https://example.com/doc");
+    expect(text).toMatch(/^# Getting started\s*\n/m);
+    expect(text).toMatch(/^# Next steps\s*\n/m);
+  });
+});

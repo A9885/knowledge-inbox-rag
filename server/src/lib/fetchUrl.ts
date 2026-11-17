@@ -90,6 +90,17 @@ async function download(url: string): Promise<{ body: string; isHtml: boolean }>
   }
 }
 
+/** Article HTML → text, with h1-h3 turned into "# heading" lines so the chunker can split by section. */
+function withHeadings(html: string): string {
+  const doc = new JSDOM(html).window.document;
+  for (const h of doc.querySelectorAll("h1, h2, h3")) {
+    const t = (h.textContent ?? "").replace(/\[edit\]/gi, "").replace(/\s+/g, " ").trim();
+    h.textContent = t ? `\n\n# ${t}\n\n` : "";
+  }
+  for (const b of doc.querySelectorAll("p, li, div, br, tr")) b.append("\n"); // keep block boundaries as line breaks
+  return (doc.body.textContent ?? "").replace(/\[edit\]/gi, "");
+}
+
 export async function fetchPage(url: string): Promise<{ title: string; text: string }> {
   const { body, isHtml } = await download(url);
   let title = "";
@@ -97,7 +108,7 @@ export async function fetchPage(url: string): Promise<{ title: string; text: str
   if (isHtml) {
     const article = new Readability(new JSDOM(body, { url }).window.document).parse();
     title = article?.title?.trim() ?? "";
-    text = article?.textContent ?? "";
+    text = article?.content ? withHeadings(article.content) : (article?.textContent ?? "");
   }
   text = text.trim();
   if (text.length < 100) throw new AppError("NO_EXTRACTABLE_TEXT", 422, "Page had no readable text");
