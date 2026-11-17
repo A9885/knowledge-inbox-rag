@@ -373,10 +373,10 @@ Add one paragraph on why the default was chosen, plus per-category notes. For ex
 
 | ID | Task | Status |
 |----|------|--------|
-| E1 | README rewrite: what it is, quick start, architecture diagram, features, design decisions (chunking, vector store, models + benchmark, relevance, citations), security, debugging + eval scores, known limits, scale + production, future work | ⬜ |
-| E2 | Root `package.json`: `npm run setup` and `npm run dev` (server + client via `concurrently`) | ⬜ |
-| E3 | Fresh-clone test in a new folder with only `GEMINI_API_KEY`; fix anything that fails | ⬜ |
-| E4 | No secrets in git history; `.env.example` complete | ⬜ |
+| E1 | README rewrite: what it is, quick start, architecture diagram, features, design decisions (chunking, vector store, models + benchmark, relevance, citations), security, debugging + eval scores, known limits, scale + production, future work | ✅ |
+| E2 | Root `package.json`: `npm run setup` and `npm run dev` (server + client via `concurrently`) | ✅ |
+| E3 | Fresh-clone test in a new folder with only `GEMINI_API_KEY`; fix anything that fails | ✅ |
+| E4 | No secrets in git history; `.env.example` complete | ✅ |
 | E5 | Merge `phase-2` → `main`, push, check the GitHub page | ⬜ |
 
 ---
@@ -444,7 +444,7 @@ HYBRID_FUSION=rrf            # rrf | weighted
 | Metric | Before | After |
 |--------|--------|-------|
 | Eval score (pass / total) | 13 / 13 (baseline) | 13 / 13 after C2 |
-| Time to first word | 0.3–0.5 s (benchmark); 12.5 s measured on 2026-11-18, provider slow that day | |
+| Time to first word | 0.3–0.5 s (benchmark); 12.5 s measured on 2026-11-18, provider slow that day | 323 ms median NVIDIA laguna, 1057 ms Gemini 3.1-flash-lite (`server/eval/latency.md`, 5 runs) |
 | Time to save a URL | 6.8 s | |
 | Search time (current data) | about 0.7 ms (7 ms cold in the debug panel: reload from SQLite + cosine, 78 chunks x 3072d) | 0.2 ms (78 chunks x 3072d); 19 ms at 10,000 chunks (synthetic, same dims) |
 | Server tests | 20 | 53 (after C2) |
@@ -470,6 +470,9 @@ HYBRID_FUSION=rrf            # rrf | weighted
 - C1 smarter chunking: sections (URL h1-h3 kept as `# heading` lines in the saved text, notes can use them too) never mix, `"<heading>: "` prefix, sentence packing with 2-sentence overlap, tiny chunks (<200) merged into the previous one (may run up to 200 over 2000), `"<title> — <chunk>"` embedded but only the chunk stored. Gate on a scratch copy after `npm run reindex`: eval 13/13 (22 → 20 chunks). **The live DB needs `npm run reindex` after merging** (old and new chunks coexist until then). Old URL items have no heading lines, so they chunk by sentences only until the URL is re-added. 7 chunker tests (overlap test rewritten for sentence overlap), 1 new fetch test
 - C2 vector cache: `VectorIndex` + `InMemoryVectorIndex` (one contiguous Float32Array, normalized, dot product), loaded at start (`vector_index.loaded`), updated on ingest, PATCH, DELETE and in-process reindex; a separate `npm run reindex` process is noticed through SQLite `data_version` and the index reloads (checked 22 → 20 chunks on a scratch server); 2 new tests
 - Doc update: added B4 (chat bar) and replaced Phase C with the "Best RAG" plan (C1–C6). Built tasks renumbered: old C0→C1, old C1→C2, old C2→C3 base
+- E2 root scripts: `npm run setup` / `npm run dev` / `.env.example` complete
+- Latency re-benchmark (`server/eval/latency.md`): NVIDIA laguna 306/323/582 ms first token (min/median/max), Gemini 3.1-flash-lite 871/1057/1189, 3.5-flash-lite 700/1548/2747, 3.8-flash timed out / 503. Gemini not faster, so NVIDIA stays the default when its key is set
+- Phase E: moved 768 dims and rerank to future work; README rewritten (E1); fresh-clone test (E3) found that with only `GEMINI_API_KEY` the zero-setup answer model `gemini-3.8-flash` hung/503, so the Gemini default and A5 fallback are now `gemini-3.1-flash-lite` (eval 13/13 on a scratch server, Gemini only); after that the fresh clone ingested and answered with citations; secrets scan of all history clean, `.env` and `data/*.db` git-ignored (E4)
 - _One line per finished task, e.g. "A1 SSRF guard: blocks private IPs, 4 new tests"_
 
 ## 10. Future work (README, if not built)
@@ -488,9 +491,9 @@ HYBRID_FUSION=rrf            # rrf | weighted
 ## Final checklist
 - [x] Phase 0 + A done, tests pass, committed
 - [ ] Eval score ≥ baseline after each phase
-- [ ] README updated with every feature that was built
-- [ ] Fresh clone works with only `GEMINI_API_KEY`
-- [ ] No keys in git history
+- [x] README updated with every feature that was built (E1; update again after B4/C)
+- [x] Fresh clone works with only `GEMINI_API_KEY`
+- [x] No keys in git history
 - [ ] B4, C3 (cache), C4, C5, C6 done or listed as future work
 - [ ] Unbuilt Phase D items listed as future work
 - [ ] Submitted by Thu 19 Nov evening
