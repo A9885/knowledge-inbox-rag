@@ -53,21 +53,21 @@ export function ItemPanel({ itemId, startEditing = false, onClose, onEdit, onDel
 
   return (
     <div role="dialog" aria-modal="true" aria-label="Saved item" className="fixed inset-0 z-10 flex items-center justify-center bg-black/40 p-4">
-      <div className="max-h-[85vh] w-full max-w-xl space-y-3 overflow-y-auto rounded-lg bg-white p-4 text-sm shadow-lg">
+      <div className="max-h-[85vh] w-full max-w-xl space-y-3 overflow-y-auto rounded-2xl bg-white p-5 text-sm shadow-xl">
         <div className="flex justify-between gap-2">
           <h3 className="font-semibold">{item?.title ?? "Loading…"}</h3>
-          <button onClick={onClose} aria-label="Close" className="text-slate-500 hover:text-slate-900">
+          <button onClick={onClose} aria-label="Close" className="flex h-10 w-10 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-900">
             ✕
           </button>
         </div>
         <ErrorBanner message={error} />
         {item && draft !== null ? (
-          <textarea value={draft} onChange={(e) => setDraft(e.target.value)} rows={8} className="w-full rounded border border-slate-300 p-2" />
+          <textarea value={draft} onChange={(e) => setDraft(e.target.value)} rows={8} className="w-full rounded-lg border border-slate-300 p-2" />
         ) : (
           item && <p className="whitespace-pre-wrap text-slate-700">{item.content}</p>
         )}
         {item?.sourceUrl && (
-          <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline">
+          <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-700 hover:underline">
             {item.sourceUrl} ↗
           </a>
         )}
@@ -75,21 +75,21 @@ export function ItemPanel({ itemId, startEditing = false, onClose, onEdit, onDel
           <div className="flex gap-2">
             {draft !== null ? (
               <>
-                <button disabled={busy || !draft.trim()} onClick={save} className="rounded bg-blue-600 px-3 py-1 text-white disabled:opacity-50">
+                <button disabled={busy || !draft.trim()} onClick={save} className="min-h-10 rounded-lg bg-blue-700 px-4 text-white disabled:opacity-50">
                   {busy ? "Saving…" : "Save"}
                 </button>
-                <button disabled={busy} onClick={() => setDraft(null)} className="rounded border px-3 py-1">
+                <button disabled={busy} onClick={() => setDraft(null)} className="min-h-10 rounded-lg border border-slate-300 px-4">
                   Cancel
                 </button>
               </>
             ) : (
               item.type !== "url" && (
-                <button onClick={() => setDraft(item.content)} className="rounded border px-3 py-1">
+                <button onClick={() => setDraft(item.content)} className="min-h-10 rounded-lg border border-slate-300 px-4">
                   Edit
                 </button>
               )
             )}
-            <button disabled={busy} onClick={remove} className="rounded border border-red-300 px-3 py-1 text-red-700">
+            <button disabled={busy} onClick={remove} className="min-h-10 rounded-lg border border-red-300 px-4 text-red-700">
               Delete
             </button>
           </div>

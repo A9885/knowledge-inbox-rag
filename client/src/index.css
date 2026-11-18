@@ -1,1 +1,23 @@
 @import "tailwindcss";
+
+/* One visible focus style everywhere (keyboard only). */
+:is(a, button, input, textarea, select, summary):focus-visible {
+  outline: 2px solid #1d4ed8;
+  outline-offset: 2px;
+}
+
+/* Thin, quiet scrollbars for the inbox and the chat thread. */
+.scroll-quiet {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}

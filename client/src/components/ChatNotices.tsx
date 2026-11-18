@@ -18,18 +18,18 @@ interface Props {
   onDismissChip: () => void;
 }
 
-const btn = "rounded border border-slate-300 bg-white px-2 py-0.5 text-xs hover:bg-slate-100";
+const btn = "min-h-10 rounded-lg border border-slate-300 bg-white px-3 text-xs font-medium hover:bg-slate-100";
 
 export function ChatNotices({ notices, chip, onView, onUndo, onSave, onAskChip, onDismissChip }: Props) {
   return (
-    <div className="space-y-2">
+    <div className="space-y-2 px-3 pt-2 empty:hidden">
       {notices.map((n) =>
         n.kind === "error" ? (
-          <div key={n.id} role="alert" className="rounded border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800">
+          <div key={n.id} role="alert" className="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800">
             {n.text}
           </div>
         ) : (
-          <div key={n.id} className="flex flex-wrap items-center gap-2 rounded border border-green-300 bg-green-50 px-3 py-2 text-sm text-green-900">
+          <div key={n.id} className="flex flex-wrap items-center gap-2 rounded-lg border border-green-300 bg-green-50 px-3 py-2 text-sm text-green-900">
             {n.undone ? (
               <span>Undone: removed "{n.item.title}" from your inbox.</span>
             ) : (
@@ -43,7 +43,7 @@ export function ChatNotices({ notices, chip, onView, onUndo, onSave, onAskChip, 
         ),
       )}
       {chip && (
-        <div className="flex flex-wrap items-center gap-2 rounded border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-900">
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-900">
           <span>{chip.kind === "url" ? "Save this link or ask about it?" : "Save this as a note?"}</span>
           {chip.kind === "url" ? (
             <>
