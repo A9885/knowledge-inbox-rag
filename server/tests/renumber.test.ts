@@ -21,4 +21,9 @@ describe("citation renumbering", () => {
       [2, "Item 1"],
     ]);
   });
+
+  it("not found is exactly the fallback line with no sources, even if the model adds commentary", () => {
+    const r = finalize("I couldn't find that in your saved content. The notes only mention X [1].", hits);
+    expect(r).toEqual({ answer: "I couldn't find that in your saved content.", sources: [], suggestions: [] });
+  });
 });
