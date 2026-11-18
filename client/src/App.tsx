@@ -4,6 +4,7 @@ import { SparkleIcon } from "./components/icons";
 import { useChats } from "./hooks/useChats";
 import { useItems } from "./hooks/useItems";
 import { ChatTabs } from "./components/ChatTabs";
+import { ChatList } from "./components/ChatList";
 import { ChatThread } from "./components/ChatThread";
 import { AskBox, type Mode } from "./components/AskBox";
 import { ChatNotices, type Chip, type Notice } from "./components/ChatNotices";
@@ -18,7 +19,7 @@ export default function App() {
   const chats = useChats();
   const [question, setQuestion] = useState("");
   const [mode, setMode] = useState<Mode>("ask");
-  const [view, setView] = useState<"chat" | "inbox">("chat"); // small screens show one panel at a time, chat first
+  const [view, setView] = useState<"chat" | "inbox" | "chats">("chat"); // small screens show one panel at a time, chat first
   const [notices, setNotices] = useState<Notice[]>([]);
   const [chip, setChip] = useState<Chip | null>(null);
   const [saving, setSaving] = useState<"note" | "url" | null>(null);
@@ -83,7 +84,7 @@ export default function App() {
     run(text);
   };
 
-  const tabBtn = (v: "chat" | "inbox", label: string) => (
+  const tabBtn = (v: "chat" | "inbox" | "chats", label: string) => (
     <button
       onClick={() => setView(v)}
       aria-pressed={view === v}
@@ -96,7 +97,7 @@ export default function App() {
   return (
     <div className="flex h-dvh flex-col bg-gradient-to-b from-slate-50 to-blue-50 text-slate-900">
       <header className="shrink-0 border-b border-slate-200 bg-white">
-        <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-3 px-4 py-2.5">
+        <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3 px-4 py-2.5">
           <div className="flex min-w-0 items-center gap-3">
             <span aria-hidden className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white">
               <SparkleIcon size={24} />
@@ -106,25 +107,26 @@ export default function App() {
               <p className="hidden text-sm text-slate-600 sm:block">Save notes and links. Ask questions. Get answers with sources.</p>
             </div>
           </div>
-          <nav aria-label="View" className="flex shrink-0 gap-1 rounded-full bg-slate-100 p-1 min-[900px]:hidden">
+          <nav aria-label="View" className="flex shrink-0 gap-1 rounded-full bg-slate-100 p-1 min-[1100px]:hidden">
             {tabBtn("chat", "Chat")}
             {tabBtn("inbox", "Inbox")}
+            {tabBtn("chats", "Chats")}
           </nav>
         </div>
       </header>
-      <main className="mx-auto flex min-h-0 w-full max-w-6xl flex-1 gap-4 p-3 min-[900px]:p-4">
+      <main className="mx-auto flex min-h-0 w-full max-w-7xl flex-1 gap-4 p-3 min-[1100px]:p-4">
         <aside
-          className={`${view === "inbox" ? "flex" : "hidden"} min-h-0 w-full flex-col rounded-xl border border-slate-200 bg-slate-50 min-[900px]:flex min-[900px]:w-80 min-[900px]:shrink-0`}
+          className={`${view === "inbox" ? "flex" : "hidden"} min-h-0 w-full flex-col rounded-xl border border-slate-200 bg-slate-50 min-[1100px]:flex min-[1100px]:w-80 min-[1100px]:shrink-0`}
         >
           <ErrorBanner message={error} />
           <ItemList items={items} loading={loading} selectedId={panel?.id ?? null} onOpen={(id, edit) => setPanel({ id, edit })} onDelete={removeItem} onStartNote={startNote} />
         </aside>
         <section
           aria-label="Chat"
-          className={`${view === "chat" ? "flex" : "hidden"} min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200 bg-slate-50 min-[900px]:flex`}
+          className={`${view === "chat" ? "flex" : "hidden"} min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200 bg-slate-50 min-[1100px]:flex`}
         >
           <div className="bg-white">
-            <ChatTabs tabs={chats.tabs} activeId={chats.activeId} disabled={chats.loading} onOpen={(id) => { setNotices([]); setChip(null); chats.open(id); }} onClose={chats.close} />
+            <ChatTabs title={chats.tabs.find((t) => t.id === chats.activeId)?.title ?? "New chat"} isNew={chats.activeId === null} disabled={chats.loading} onNew={() => { setNotices([]); setChip(null); chats.open(null); }} />
           </div>
           <ErrorBanner message={chats.error} />
           <ChatThread messages={chats.messages} draft={chats.draft} onSuggest={run} items={items} onOpenItem={(id) => setPanel({ id, edit: false })} onPin={(mid, text) => pinMessage(chats.activeId!, mid, text)} onStartNote={startNote} />
@@ -141,6 +143,18 @@ export default function App() {
           />
           <AskBox value={question} onChange={setQuestion} onSubmit={submit} mode={mode} onMode={setMode} loading={chats.loading} saving={saving} />
         </section>
+        <aside
+          aria-label="Chats"
+          className={`${view === "chats" ? "flex" : "hidden"} min-h-0 w-full flex-col rounded-xl border border-slate-200 bg-slate-50 min-[1100px]:flex min-[1100px]:w-64 min-[1100px]:shrink-0`}
+        >
+          <ChatList
+            chats={chats.tabs}
+            activeId={chats.activeId}
+            disabled={chats.loading}
+            onOpen={(id) => { setNotices([]); setChip(null); setView("chat"); chats.open(id); }}
+            onDelete={chats.close}
+          />
+        </aside>
       </main>
       {panel && (
         <ItemPanel key={panel.id} itemId={panel.id} startEditing={panel.edit} onClose={() => setPanel(null)} onEdit={editItem} onDelete={removeItem} />
