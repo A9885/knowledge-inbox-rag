@@ -22,7 +22,7 @@ export function createApp() {
       },
     }),
   );
-  app.use(cors());
+  app.use(cors({ origin: /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/ })); // other websites can't call the API from a browser; curl and scripts are unaffected
   app.use(express.json({ limit: "1mb" }));
 
   app.get("/health", (_req, res) => void res.json({ status: "ok" }));
