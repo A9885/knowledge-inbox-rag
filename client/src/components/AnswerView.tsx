@@ -1,18 +1,7 @@
 import { useState } from "react";
-import type { Debug, Source } from "../types";
-import { ICONS, shortDate, TYPE_LABEL } from "./ItemList";
+import type { Debug, NearMatch, Source } from "../types";
+import { domainOf, ICONS, shortDate, TYPE_LABEL } from "./ItemList";
 import { RichText } from "./RichText";
-
-// "https://en.wikipedia.org/wiki/Goa" → "en.wikipedia.org/wiki/Goa"
-const shortLink = (u: string) => {
-  try {
-    const { hostname, pathname } = new URL(u);
-    const path = pathname.length > 1 ? pathname : "";
-    return hostname.replace(/^www\./, "") + (path.length > 28 ? `${path.slice(0, 28)}…` : path);
-  } catch {
-    return u;
-  }
-};
 
 function DebugDetails({ debug: d }: { debug: Debug }) {
   const t = d.timings;
@@ -40,12 +29,13 @@ interface Props {
   sources: Source[];
   suggestions: string[];
   debug?: Debug;
+  didYouMean?: NearMatch[];
   editedItems: Set<string>;
   onOpenItem: (id: string) => void;
   onSuggest: (q: string) => void;
 }
 
-export function AnswerView({ idPrefix, answer, sources, suggestions, debug, editedItems, onOpenItem, onSuggest }: Props) {
+export function AnswerView({ idPrefix, answer, sources, suggestions, debug, didYouMean, editedItems, onOpenItem, onSuggest }: Props) {
   const [openRef, setOpenRef] = useState<number | null>(null);
   const uncited = sources.length > 0 && !sources[0].cited;
   const open = sources.find((s) => s.ref === openRef);
@@ -57,7 +47,7 @@ export function AnswerView({ idPrefix, answer, sources, suggestions, debug, edit
 
   return (
     <div className="space-y-3">
-      <div className="rounded-2xl rounded-tl-sm border border-slate-200 bg-white px-4 py-3 shadow-sm">
+      <div className="rounded-xl rounded-tl-sm border border-slate-200 bg-white px-4 py-3 shadow-sm">
         <RichText text={answer} onCite={show} />
         {sources.length > 0 && (
           <div className="mt-3 border-t border-slate-100 pt-2">
@@ -93,7 +83,7 @@ export function AnswerView({ idPrefix, answer, sources, suggestions, debug, edit
                 </div>
                 {open.sourceUrl && (
                   <a href={open.sourceUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-700 hover:underline">
-                    {shortLink(open.sourceUrl)} ↗
+                    {domainOf(open.sourceUrl)} ↗
                   </a>
                 )}
                 {editedItems.has(open.itemId) && <p className="text-xs font-medium text-amber-800">⚠ Edited after this answer was written</p>}
@@ -104,6 +94,26 @@ export function AnswerView({ idPrefix, answer, sources, suggestions, debug, edit
           </div>
         )}
       </div>
+      {!!didYouMean?.length && (
+        <div>
+          <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-600">Did you mean</p>
+          <div className="flex flex-col items-start gap-1.5">
+            {didYouMean.map((n) => (
+              <button
+                key={n.itemId}
+                type="button"
+                onClick={() => onOpenItem(n.itemId)}
+                title={`Open ${n.title}`}
+                className="flex max-w-full items-center gap-1.5 rounded-full border border-slate-300 bg-white px-3 py-1.5 text-left text-xs text-slate-800 hover:bg-slate-50"
+              >
+                <span aria-hidden>{ICONS[n.type]}</span>
+                <span className="truncate">{n.title}</span>
+                <span className="shrink-0 text-blue-800">Open</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       {suggestions.length > 0 && (
         <div>
           <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-600">Try asking</p>

@@ -8,6 +8,9 @@ interface Props {
   onClose: (id: string) => void;
 }
 
+/** First question, cut short: tabs are for finding a chat again, not for reading it. */
+const cut = (t: string) => (t.length > 24 ? `${t.slice(0, 24).trimEnd()}…` : t);
+
 export function ChatTabs({ tabs, activeId, disabled, onOpen, onClose }: Props) {
   return (
     <div className="flex items-center gap-2 border-b border-slate-200 px-3 py-2">
@@ -21,24 +24,24 @@ export function ChatTabs({ tabs, activeId, disabled, onOpen, onClose }: Props) {
       >
         <span aria-hidden>＋</span> New chat
       </button>
-      <div role="tablist" aria-label="Chats" className="scroll-quiet flex min-w-0 flex-1 gap-1 overflow-x-auto">
+      <div role="tablist" aria-label="Chats" className="flex min-w-0 flex-1 gap-1 overflow-x-auto px-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [mask-image:linear-gradient(to_right,transparent,#000_12px,#000_calc(100%-12px),transparent)]">
         {tabs.map((t) => {
           const active = t.id === activeId;
           return (
             <div
               key={t.id}
-              className={`flex shrink-0 items-center rounded-lg border text-sm ${
+              className={`group flex shrink-0 items-center rounded-lg border text-sm ${
                 active ? "border-blue-600 bg-blue-50 font-semibold text-blue-900" : "border-transparent text-slate-700 hover:bg-slate-100"
               } ${disabled ? "opacity-60" : ""}`}
             >
-              <button role="tab" aria-selected={active} disabled={disabled} onClick={() => onOpen(t.id)} className="min-h-10 max-w-40 truncate pl-3 pr-1" title={t.title}>
-                {t.title}
+              <button role="tab" aria-selected={active} disabled={disabled} onClick={() => onOpen(t.id)} className="min-h-10 truncate pl-3 pr-1" title={t.title}>
+                {cut(t.title)}
               </button>
               <button
                 disabled={disabled}
                 aria-label={`Delete chat ${t.title}`}
                 onClick={() => window.confirm(`Delete "${t.title}" and its history?`) && onClose(t.id)}
-                className="flex h-10 w-8 items-center justify-center text-slate-600 hover:text-red-700"
+                className={`flex h-10 w-8 items-center justify-center text-slate-600 hover:text-red-700 focus-visible:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100 ${active ? "" : "opacity-0"}`}
               >
                 ×
               </button>

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import * as api from "../api/client";
 import type { Draft } from "../hooks/useChats";
 import type { Item, Message } from "../types";
 import { AnswerView } from "./AnswerView";
@@ -12,9 +13,8 @@ interface Props {
   items: Item[];
   onOpenItem: (id: string) => void;
   onPin: (messageId: string, content: string) => Promise<void>;
+  onStartNote: () => void;
 }
-
-const EXAMPLES = ["What do I have planned this week?", "Summarize my saved notes", "What did I save about travel?"];
 
 function Avatar() {
   return (
@@ -39,7 +39,7 @@ function Question({ text, onPin }: { text: string; onPin?: () => Promise<void> }
   const reveal = state === "idle" || state === "saving" ? "opacity-0 group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100" : "";
   return (
     <div className="group ml-auto flex max-w-[85%] flex-col items-end gap-1">
-      <div className="whitespace-pre-wrap rounded-2xl rounded-tr-sm bg-blue-700 px-4 py-2.5 text-[15px] leading-relaxed text-white">{text}</div>
+      <div className="whitespace-pre-wrap rounded-xl rounded-tr-sm bg-blue-700 px-4 py-2.5 text-[15px] leading-relaxed text-white">{text}</div>
       {onPin &&
         (state === "saved" ? (
           <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">✓ Saved to your inbox</span>
@@ -62,11 +62,51 @@ function Question({ text, onPin }: { text: string; onPin?: () => Promise<void> }
   );
 }
 
+/** New chat: with content, three questions made from the inbox itself; without, the first step. */
+function EmptyChat({ hasItems, onSuggest, onStartNote }: { hasItems: boolean; onSuggest: (q: string) => void; onStartNote: () => void }) {
+  const [qs, setQs] = useState<string[] | null>(null); // null = still being made
+  useEffect(() => {
+    let live = true;
+    setQs(hasItems ? null : []);
+    if (hasItems) api.getSuggestions().then((s) => live && setQs(s)).catch(() => live && setQs([]));
+    return () => {
+      live = false;
+    };
+  }, [hasItems]);
+  return (
+    <div className="flex flex-1 flex-col items-center justify-center gap-4 overflow-y-auto p-6 text-center">
+      <span aria-hidden className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 text-lg font-bold text-blue-800">AI</span>
+      <div>
+        <h2 className="text-lg font-semibold text-slate-900">{hasItems ? "Ask your inbox" : "Start with a note or link"}</h2>
+        <p className="mt-1 max-w-sm text-sm text-slate-600">
+          {hasItems ? "Answers come only from the notes and links in your inbox, with sources." : "Save a note or link, then ask a question about it. Answers cite their sources."}
+        </p>
+      </div>
+      {!hasItems && (
+        <button type="button" onClick={onStartNote} className="min-h-10 rounded-lg bg-blue-700 px-4 text-sm font-medium text-white hover:bg-blue-800">
+          Save your first note
+        </button>
+      )}
+      {hasItems && qs === null && <p role="status" className="text-sm text-slate-600">Looking at your inbox for ideas…</p>}
+      {!!qs?.length && (
+        <div className="flex w-full max-w-sm flex-col gap-2">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">Try asking</p>
+          {qs.map((q) => (
+            <button key={q} type="button" onClick={() => onSuggest(q)} className="min-h-10 rounded-lg border border-slate-300 bg-white px-4 py-2 text-left text-sm text-slate-800 hover:border-blue-400 hover:bg-blue-50">
+              {q}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /** Animated dots while waiting for the first word. */
 function Thinking() {
   return (
     <span className="inline-flex items-center gap-1 text-sm text-slate-600" role="status">
-      <span>Searching your inbox</span>
+      <span>Thinking</span>
       {[0, 150, 300].map((d) => (
         <span key={d} aria-hidden className="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-500" style={{ animationDelay: `${d}ms` }} />
       ))}
@@ -78,37 +118,13 @@ function Thinking() {
 const editedSince = (m: Message, items: Item[]) =>
   new Set(m.createdAt ? items.filter((i) => i.updatedAt > m.createdAt!).map((i) => i.id) : []);
 
-export function ChatThread({ messages, draft, onSuggest, items, onOpenItem, onPin }: Props) {
+export function ChatThread({ messages, draft, onSuggest, items, onOpenItem, onPin, onStartNote }: Props) {
   const end = useRef<HTMLDivElement>(null);
   useEffect(() => {
     end.current?.scrollIntoView({ block: "end" }); // braces: an effect must not return scrollIntoView's value
   }, [messages, draft]);
 
-  if (!messages.length && !draft) {
-    return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-4 p-6 text-center">
-        <span aria-hidden className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 text-lg font-bold text-blue-800">AI</span>
-        <div>
-          <h2 className="text-lg font-semibold text-slate-900">{items.length ? "Ask your inbox" : "Start with a note or link"}</h2>
-          <p className="mt-1 max-w-sm text-sm text-slate-600">
-            {items.length
-              ? "Answers come only from the notes and links in your inbox, with sources."
-              : "Save a note or link, then ask a question about it. Use Save note or Save link in the chat bar below. Answers will cite their sources."}
-          </p>
-        </div>
-        {items.length > 0 && (
-          <div className="flex w-full max-w-sm flex-col gap-2">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">Try asking</p>
-            {EXAMPLES.map((q) => (
-              <button key={q} type="button" onClick={() => onSuggest(q)} className="min-h-10 rounded-xl border border-slate-300 bg-white px-4 py-2 text-left text-sm text-slate-800 hover:border-blue-400 hover:bg-blue-50">
-                {q}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-    );
-  }
+  if (!messages.length && !draft) return <EmptyChat hasItems={items.length > 0} onSuggest={onSuggest} onStartNote={onStartNote} />;
   return (
     <div className="scroll-quiet min-h-0 flex-1 space-y-5 overflow-y-auto px-4 py-4" aria-live="polite">
       {messages.map((m, i) =>
@@ -116,14 +132,15 @@ export function ChatThread({ messages, draft, onSuggest, items, onOpenItem, onPi
           // Only statements are worth saving: a saved question matches future questions better than the real note and crowds it out.
           <Question key={m.id} text={m.content} onPin={guessIntent(m.content) === "note" ? () => onPin(m.id, m.content) : undefined} />
         ) : (
-          <div key={m.id} className="flex max-w-[95%] gap-2 md:max-w-2xl">
+          <div key={m.id} className="flex max-w-[95%] gap-2">
             <Avatar />
-            <div className="min-w-0 flex-1">
+            <div className="min-w-0 max-w-[70ch] flex-1">
               <AnswerView
                 idPrefix={m.id}
                 answer={m.content}
                 sources={m.sources}
                 debug={m.debug}
+                didYouMean={m.didYouMean}
                 editedItems={editedSince(m, items)}
                 onOpenItem={onOpenItem}
                 suggestions={i === messages.length - 1 ? m.suggestions : []}
@@ -136,9 +153,9 @@ export function ChatThread({ messages, draft, onSuggest, items, onOpenItem, onPi
       {draft && (
         <>
           <Question text={draft.question} />
-          <div className="flex max-w-[95%] gap-2 md:max-w-2xl">
+          <div className="flex max-w-[95%] gap-2">
             <Avatar />
-            <div className="min-w-0 rounded-2xl rounded-tl-sm border border-slate-200 bg-white px-4 py-3 shadow-sm">
+            <div className="min-w-0 max-w-[70ch] rounded-xl rounded-tl-sm border border-slate-200 bg-white px-4 py-3 shadow-sm">
               {draft.text ? <RichText text={draft.text} /> : <Thinking />}
             </div>
           </div>

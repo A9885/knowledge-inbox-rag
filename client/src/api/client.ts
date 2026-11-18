@@ -4,9 +4,11 @@ const BASE = import.meta.env.VITE_API_URL ?? "http://localhost:4000";
 
 export class ApiError extends Error {
   code: string;
-  constructor(code: string, message: string) {
+  itemId?: string; // ALREADY_SAVED: the note or link that is already in the inbox
+  constructor(code: string, message: string, itemId?: string) {
     super(message);
     this.code = code;
+    this.itemId = itemId;
   }
 }
 
@@ -30,13 +32,15 @@ export function friendly(code: string, serverMessage: string): string {
     case "EMBEDDING_FAILED":
       return "Couldn't index this text (the embedding service failed). Try again in a moment.";
     case "ALREADY_SAVED":
-      return "This message is already in your inbox.";
+      return "Already in your inbox.";
+    case "PAGE_BLOCKED":
+      return "This page blocked automatic reading. Paste the text as a note instead.";
     default:
       return serverMessage;
   }
 }
-const apiError = (code: string | undefined, message: string | undefined, status: number) =>
-  new ApiError(code ?? "UNKNOWN", friendly(code ?? "UNKNOWN", message ?? `Request failed (${status})`));
+const apiError = (code: string | undefined, message: string | undefined, status: number, itemId?: string) =>
+  new ApiError(code ?? "UNKNOWN", friendly(code ?? "UNKNOWN", message ?? `Request failed (${status})`), itemId);
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   let res: Response;
@@ -49,7 +53,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     throw new ApiError("NETWORK_ERROR", friendly("NETWORK_ERROR", ""));
   }
   const body = await res.json().catch(() => null);
-  if (!res.ok) throw apiError(body?.error?.code, body?.error?.message, res.status);
+  if (!res.ok) throw apiError(body?.error?.code, body?.error?.message, res.status, body?.error?.itemId);
   return body as T;
 }
 
@@ -66,6 +70,9 @@ export const getItem = (id: string) =>
 export const editItem = (id: string, content: string) =>
   request<{ item: Item }>(`/items/${id}`, { method: "PATCH", body: JSON.stringify({ content }) }).then((r) => r.item);
 export const deleteItem = (id: string) => request<null>(`/items/${id}`, { method: "DELETE" });
+
+/** Three questions made from what is in the inbox; [] when there is nothing to base them on. */
+export const getSuggestions = () => request<{ suggestions: string[] }>("/suggestions").then((r) => r.suggestions);
 
 export const listItems = () => request<{ items: Item[] }>("/items").then((r) => r.items);
 

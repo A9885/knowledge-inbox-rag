@@ -30,10 +30,19 @@ export interface Debug {
   timings: { embedMs: number; searchMs: number; firstTokenMs: number; totalMs: number };
 }
 
+/** A close match offered when nothing answers the question ("Did you mean"). */
+export interface NearMatch {
+  itemId: string;
+  title: string;
+  type: Item["type"];
+  score: number;
+}
+
 export interface Answer {
   answer: string;
   sources: Source[];
   suggestions: string[];
+  didYouMean?: NearMatch[]; // only on a not-found answer
   debug?: Debug; // only when the server runs with DEBUG=true
 }
 
@@ -50,5 +59,6 @@ export interface Message {
   sources: Source[];
   suggestions: string[];
   createdAt?: string;
+  didYouMean?: NearMatch[]; // fresh answers only; not stored with the chat
   debug?: Debug; // fresh answers only; not stored with the chat
 }

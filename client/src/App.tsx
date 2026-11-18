@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { ApiError } from "./api/client";
 import { useChats } from "./hooks/useChats";
 import { useItems } from "./hooks/useItems";
 import { ChatTabs } from "./components/ChatTabs";
@@ -27,6 +28,22 @@ export default function App() {
   };
 
   // Only explicit actions save: a mode, a /command, or a click on a chip. Uses the normal ingest endpoint.
+  const timers = useRef(new Set<number>());
+  const notify = (n: Notice) => {
+    setNotices((all) => [...all, n]);
+    if (n.kind !== "error") {
+      // Successes tidy themselves away; errors stay until dismissed.
+      const t = window.setTimeout(() => setNotices((all) => all.filter((x) => x.id !== n.id)), 5000);
+      timers.current.add(t);
+    }
+  };
+  const dismiss = (id: number) => setNotices((all) => all.filter((n) => n.id !== id));
+  const startNote = () => {
+    setMode("note");
+    setView("chat");
+    window.setTimeout(() => document.getElementById("askbox-input")?.focus(), 0);
+  };
+
   const save = async (type: "note" | "url", content: string) => {
     setChip(null);
     setQuestion("");
@@ -34,9 +51,11 @@ export default function App() {
     setSaving(type);
     try {
       const item = await addItem(type, content);
-      setNotices((n) => [...n, { id: Date.now(), kind: "saved", item }]);
+      notify({ id: Date.now(), kind: "saved", item });
     } catch (e) {
-      setNotices((n) => [...n, { id: Date.now(), kind: "error", text: (e as Error).message }]);
+      const dup = e instanceof ApiError && e.code === "ALREADY_SAVED" && e.itemId;
+      if (dup) notify({ id: Date.now(), kind: "duplicate", itemId: dup, title: items.find((i) => i.id === dup)?.title ?? "this one" });
+      else notify({ id: Date.now(), kind: "error", text: (e as Error).message });
     } finally {
       setSaving(null);
     }
@@ -46,7 +65,7 @@ export default function App() {
       await removeItem(n.item.id);
       setNotices((all) => all.map((x) => (x === n ? { ...n, undone: true } : x)));
     } catch (e) {
-      setNotices((all) => [...all, { id: Date.now(), kind: "error", text: (e as Error).message }]);
+      notify({ id: Date.now(), kind: "error", text: (e as Error).message });
     }
   };
 
@@ -67,7 +86,7 @@ export default function App() {
     <button
       onClick={() => setView(v)}
       aria-pressed={view === v}
-      className={`min-h-10 whitespace-nowrap rounded-full px-4 text-sm font-medium ${view === v ? "bg-blue-700 text-white" : "text-slate-700 hover:bg-slate-100"}`}
+      className={`min-h-10 whitespace-nowrap rounded-full px-4 text-sm font-medium ${view === v ? "bg-blue-700 text-white" : "text-slate-700 hover:bg-slate-200"}`}
     >
       {label}
     </button>
@@ -81,34 +100,35 @@ export default function App() {
             <h1 className="text-lg font-bold leading-tight">AI Knowledge Inbox</h1>
             <p className="hidden text-xs text-slate-600 sm:block">Save notes and links. Ask questions. Get answers with sources.</p>
           </div>
-          <nav aria-label="View" className="flex shrink-0 gap-1 rounded-full bg-slate-100 p-1 lg:hidden">
+          <nav aria-label="View" className="flex shrink-0 gap-1 rounded-full bg-slate-100 p-1 min-[900px]:hidden">
             {tabBtn("chat", "Chat")}
-            {tabBtn("inbox", `Inbox (${items.length})`)}
+            {tabBtn("inbox", "Inbox")}
           </nav>
         </div>
       </header>
-      <main className="mx-auto flex min-h-0 w-full max-w-6xl flex-1 gap-4 p-3 lg:p-4">
+      <main className="mx-auto flex min-h-0 w-full max-w-6xl flex-1 gap-4 p-3 min-[900px]:p-4">
         <aside
-          className={`${view === "inbox" ? "flex" : "hidden"} min-h-0 w-full flex-col rounded-2xl border border-slate-200 bg-slate-50 lg:flex lg:w-80 lg:shrink-0`}
+          className={`${view === "inbox" ? "flex" : "hidden"} min-h-0 w-full flex-col rounded-xl border border-slate-200 bg-slate-50 min-[900px]:flex min-[900px]:w-80 min-[900px]:shrink-0`}
         >
           <ErrorBanner message={error} />
-          <ItemList items={items} loading={loading} onOpen={(id, edit) => setPanel({ id, edit })} onDelete={removeItem} />
+          <ItemList items={items} loading={loading} selectedId={panel?.id ?? null} onOpen={(id, edit) => setPanel({ id, edit })} onDelete={removeItem} onStartNote={startNote} />
         </aside>
         <section
           aria-label="Chat"
-          className={`${view === "chat" ? "flex" : "hidden"} min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 lg:flex`}
+          className={`${view === "chat" ? "flex" : "hidden"} min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200 bg-slate-50 min-[900px]:flex`}
         >
           <div className="bg-white">
             <ChatTabs tabs={chats.tabs} activeId={chats.activeId} disabled={chats.loading} onOpen={(id) => { setNotices([]); setChip(null); chats.open(id); }} onClose={chats.close} />
           </div>
           <ErrorBanner message={chats.error} />
-          <ChatThread messages={chats.messages} draft={chats.draft} onSuggest={run} items={items} onOpenItem={(id) => setPanel({ id, edit: false })} onPin={(mid, text) => pinMessage(chats.activeId!, mid, text)} />
+          <ChatThread messages={chats.messages} draft={chats.draft} onSuggest={run} items={items} onOpenItem={(id) => setPanel({ id, edit: false })} onPin={(mid, text) => pinMessage(chats.activeId!, mid, text)} onStartNote={startNote} />
           <ChatNotices
             notices={notices}
             chip={chip}
             saving={saving}
             onView={(id) => setPanel({ id, edit: false })}
             onUndo={undo}
+            onDismiss={dismiss}
             onSave={save}
             onAskChip={(t) => { setChip(null); run(t); }}
             onDismissChip={() => setChip(null)}

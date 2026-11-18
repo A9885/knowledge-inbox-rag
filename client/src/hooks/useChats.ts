@@ -69,7 +69,7 @@ export function useChats() {
       const r = await api.askStream(question, id, (t) => setDraft((d) => d && { ...d, text: d.text + t }));
       const saved = await api.getMessages(id); // server ids, needed to pin a message
       const last = saved.length - 1;
-      setMessages(saved.map((m, k) => (k === last ? { ...m, debug: r.debug } : m)));
+      setMessages(saved.map((m, k) => (k === last ? { ...m, debug: r.debug, didYouMean: r.didYouMean } : m)));
       setTabs(await api.listConversations()); // picks up the new tab / title / order
     } catch (e) {
       setError(msg(e));

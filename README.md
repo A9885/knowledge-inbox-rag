@@ -97,7 +97,11 @@ NVIDIA is about 3x faster to the first word, so it stays the default when a key 
 ## Future work
 
 - Phase D ideas: review popup that proposes lasting facts when a chat closes (D1), email drafts that need confirmation (D2), local/both embedding modes (D3), answer cache with optional Redis (D4)
-- Smaller embedding sizes (1536/768 dims), LLM reranking
+- Smaller embedding sizes (1536/768 dims), LLM reranking (reranking would also fix weak topic matches)
+- Jira and date filtering ("what did I save last week")
+- Extraction states with retry for links (processing / failed / blocked) and a link detail view
+- Task tables (structured to-dos instead of free-text notes)
+- Topic classification and related-note linking
 - Planned items are tracked in [`doc/DEVELOPMENT.md`](doc/DEVELOPMENT.md)
 - sqlite-vec, then pgvector (HNSW) or Qdrant for large data; job queue for ingestion
 - Structured fields + SQL filters for list/aggregate questions

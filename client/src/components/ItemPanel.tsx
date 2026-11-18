@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import * as api from "../api/client";
 import { ErrorBanner } from "./ErrorBanner";
-import { ICONS, TYPE_LABEL } from "./ItemList";
+import { domainOf, ICONS, TYPE_LABEL } from "./ItemList";
 
 interface Props {
   itemId: string;
@@ -11,7 +11,7 @@ interface Props {
   onDelete: (id: string) => Promise<void>;
 }
 
-/** Full text of one saved note, link or chat, with edit and delete. Links are read-only (save the link again instead). */
+/** Full text of one saved note, link or chat, with edit and delete. Links are read-only (save the link again instead). Esc closes. */
 export function ItemPanel({ itemId, startEditing = false, onClose, onEdit, onDelete }: Props) {
   const [item, setItem] = useState<Awaited<ReturnType<typeof api.getItem>> | null>(null);
   const [draft, setDraft] = useState<string | null>(null); // non-null = editing
@@ -27,6 +27,12 @@ export function ItemPanel({ itemId, startEditing = false, onClose, onEdit, onDel
       })
       .catch((e) => setError((e as Error).message));
   }, [itemId, startEditing]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
 
   const run = async (fn: () => Promise<void>) => {
     setBusy(true);
@@ -52,50 +58,64 @@ export function ItemPanel({ itemId, startEditing = false, onClose, onEdit, onDel
       onClose();
     });
 
+  const saved = item ? new Date(item.createdAt).toLocaleDateString("en", { day: "numeric", month: "short", year: "numeric" }) : "";
   return (
-    <div role="dialog" aria-modal="true" aria-label={item ? `${TYPE_LABEL[item.type]}: ${item.title}` : "Loading"} className="fixed inset-0 z-10 flex items-center justify-center bg-black/40 p-4">
-      <div className="max-h-[85vh] w-full max-w-xl space-y-3 overflow-y-auto rounded-2xl bg-white p-5 text-sm shadow-xl">
-        <div className="flex justify-between gap-2">
+    <div role="dialog" aria-modal="true" aria-label={item ? `${TYPE_LABEL[item.type]}: ${item.title}` : "Loading"} className="fixed inset-0 z-10 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div className="flex max-h-[85vh] w-full max-w-xl flex-col rounded-xl bg-white text-sm shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-start justify-between gap-2 border-b border-slate-200 p-4">
           <div className="min-w-0">
-            {item && <p className="text-xs font-medium text-slate-600"><span aria-hidden>{ICONS[item.type]}</span> {TYPE_LABEL[item.type]}</p>}
-            <h3 className="font-semibold">{item?.title ?? "Loading…"}</h3>
+            {item && (
+              <p className="text-xs font-medium text-slate-600">
+                <span aria-hidden>{ICONS[item.type]}</span> {TYPE_LABEL[item.type]} · saved {saved}
+              </p>
+            )}
+            <h3 className="break-words text-base font-semibold text-slate-900">{item?.title ?? "Loading…"}</h3>
           </div>
-          <button onClick={onClose} aria-label="Close" className="flex h-10 w-10 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-900">
+          <button onClick={onClose} aria-label="Close" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-900">
             ✕
           </button>
         </div>
-        <ErrorBanner message={error} />
-        {item && draft !== null ? (
-          <textarea value={draft} onChange={(e) => setDraft(e.target.value)} rows={8} className="w-full rounded-lg border border-slate-300 p-2" />
-        ) : (
-          item && <p className="whitespace-pre-wrap text-slate-700">{item.content}</p>
-        )}
-        {item?.sourceUrl && (
-          <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-700 hover:underline">
-            {item.sourceUrl} ↗
-          </a>
-        )}
+        <div className="scroll-quiet min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
+          <ErrorBanner message={error} />
+          {item && draft !== null ? (
+            <textarea value={draft} onChange={(e) => setDraft(e.target.value)} rows={8} aria-label="Edit note text" className="w-full rounded-lg border border-slate-300 p-2 text-[15px] leading-relaxed" />
+          ) : (
+            item && <p className="max-w-[70ch] whitespace-pre-wrap break-words text-[15px] leading-relaxed text-slate-800">{item.content}</p>
+          )}
+          {item?.sourceUrl && (
+            <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer" className="block break-all text-xs text-blue-700 hover:underline">
+              {domainOf(item.sourceUrl)} ↗
+            </a>
+          )}
+        </div>
         {item && (
-          <div className="flex gap-2">
-            {draft !== null ? (
-              <>
-                <button disabled={busy || !draft.trim()} onClick={save} className="min-h-10 rounded-lg bg-blue-700 px-4 text-white disabled:opacity-50">
-                  {busy ? "Saving…" : "Save"}
-                </button>
-                <button disabled={busy} onClick={() => setDraft(null)} className="min-h-10 rounded-lg border border-slate-300 px-4">
-                  Cancel
-                </button>
-              </>
-            ) : (
-              item.type !== "url" && (
-                <button onClick={() => setDraft(item.content)} className="min-h-10 rounded-lg border border-slate-300 px-4">
-                  Edit
-                </button>
-              )
-            )}
-            <button disabled={busy} onClick={remove} className="min-h-10 rounded-lg border border-red-300 px-4 text-red-700">
+          <div className="flex items-center justify-between gap-2 border-t border-slate-200 p-3">
+            <button disabled={busy} onClick={remove} className="min-h-10 rounded-lg border border-red-300 px-4 font-medium text-red-700 hover:bg-red-50">
               Delete
             </button>
+            <div className="flex gap-2">
+              {draft !== null ? (
+                <>
+                  <button disabled={busy} onClick={() => setDraft(null)} className="min-h-10 rounded-lg border border-slate-300 px-4">
+                    Cancel
+                  </button>
+                  <button disabled={busy || !draft.trim()} onClick={save} className="min-h-10 rounded-lg bg-blue-700 px-4 font-medium text-white hover:bg-blue-800 disabled:opacity-50">
+                    {busy ? "Saving…" : "Save"}
+                  </button>
+                </>
+              ) : (
+                <>
+                  {item.type !== "url" && (
+                    <button onClick={() => setDraft(item.content)} className="min-h-10 rounded-lg bg-blue-700 px-4 font-medium text-white hover:bg-blue-800">
+                      Edit
+                    </button>
+                  )}
+                  <button onClick={onClose} className="min-h-10 rounded-lg border border-slate-300 px-4">
+                    Close
+                  </button>
+                </>
+              )}
+            </div>
           </div>
         )}
       </div>
