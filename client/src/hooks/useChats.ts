@@ -34,7 +34,7 @@ export function useChats() {
       .listConversations()
       .then((list) => {
         setTabs(list);
-        return load(list[0]?.id ?? null); // reopen the most recent chat
+        return load(null); // a refresh starts a new empty chat; earlier chats are one click away in the Chats list
       })
       .catch((e) => setError(msg(e)));
   }, [load]);

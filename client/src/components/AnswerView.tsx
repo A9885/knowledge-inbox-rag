@@ -65,12 +65,14 @@ export function AnswerView({ idPrefix, answer, sources, suggestions, debug, didY
                   <div className="flex items-center gap-2">
                     <span className="text-slate-600"><TypeIcon type={s.type} /></span>
                     <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-blue-100 px-1 text-[11px] font-semibold text-blue-800">{s.ref}</span>
-                    <button type="button" onClick={() => onOpenItem(s.itemId)} className="min-w-0 truncate text-left font-semibold text-slate-900 hover:underline" title={s.title}>
+                    <button type="button" onClick={() => onOpenItem(s.itemId)} className="min-w-0 flex-1 truncate text-left font-semibold text-slate-900 hover:underline" title={s.title}>
                       {s.title}
                     </button>
+                  </div>
+                  <div className="mt-1 flex items-center gap-2 pl-[3.25rem]">
                     <TypePill type={s.type} />
+                    {s.updatedAt && <span className="text-xs text-slate-600">{shortDate(s.updatedAt)}</span>}
                     <span className="ml-auto flex shrink-0 items-center gap-2">
-                      {s.updatedAt && <span className="hidden text-xs text-slate-600 sm:inline">{shortDate(s.updatedAt)}</span>}
                       {s.sourceUrl ? (
                         <a href={s.sourceUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs font-medium text-blue-700 hover:underline" title={s.sourceUrl}>
                           {domainOf(s.sourceUrl)} <ExternalIcon />
@@ -82,7 +84,7 @@ export function AnswerView({ idPrefix, answer, sources, suggestions, debug, didY
                       )}
                     </span>
                   </div>
-                  <p className="mt-1.5 line-clamp-2 break-words text-slate-600">{s.snippet}</p>
+                  <p className="mt-1.5 line-clamp-2 break-words pl-[3.25rem] text-slate-600">{s.snippet}</p>
                   {(s.flagged || editedItems.has(s.itemId)) && (
                     <p className="mt-1 text-xs font-medium text-amber-800">
                       {editedItems.has(s.itemId) && "⚠ Edited after this answer was written. "}
