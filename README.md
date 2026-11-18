@@ -13,6 +13,8 @@ npm run setup          # installs everything, creates server/.env from .env.exam
 npm run dev            # API on http://localhost:4000, UI on http://localhost:5173
 ```
 
+**Ports busy?** The API reads `PORT` (default 4000, set it in `server/.env`). Vite takes the next free UI port on its own (5174, ...) and prints it. If the API is not on 4000, create `client/.env` with `VITE_API_URL=http://localhost:<port>`. CORS accepts any `localhost` / `127.0.0.1` port. `npm run setup` uses `npm ci`, so installs follow the lockfiles exactly.
+
 Optional: `cd server && npm run seed` loads sample notes and URLs. `NVIDIA_API_KEY` is optional and makes answers faster (see [Models](#design-decisions-and-tradeoffs)).
 
 Other scripts (run in `server/`): `npm test`, `npm run eval`, `npm run reindex`, `npm run seed:people`, `npm run seed:meridian`, `npm run eval:full`, `npm run eval:compare`. Root: `npm test`.
