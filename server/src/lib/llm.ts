@@ -1,6 +1,7 @@
 import OpenAI from "openai";
 import { config } from "../config.js";
 import { log } from "./logger.js";
+import { customChat, embeddingProvider } from "./providers.js";
 
 // The only file that talks to the LLM provider (Gemini, via its OpenAI-compatible API).
 // Embeddings always use Gemini; chat uses NVIDIA NIM when NVIDIA_API_KEY is set.
@@ -8,7 +9,7 @@ let gemini: OpenAI | undefined;
 let nvidia: OpenAI | undefined;
 const api = () =>
   (gemini ??= new OpenAI({
-    apiKey: config.GEMINI_API_KEY,
+    apiKey: config.GEMINI_API_KEY ?? "",
     baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
     maxRetries: 0, // retries would only stretch the wait; the other provider is the retry
   }));
@@ -16,12 +17,20 @@ const nvidiaApi = () =>
   (nvidia ??= new OpenAI({ apiKey: config.NVIDIA_API_KEY, baseURL: "https://integrate.api.nvidia.com/v1", maxRetries: 0 }));
 
 const MAX_TOKENS = 700;
-const BATCH = 100; // Gemini embeddings accept at most 100 inputs per request
+const clients = new Map<string, OpenAI>(); // one client per distinct endpoint
+const clientFor = (baseURL: string, apiKey: string) => {
+  const k = `${baseURL}|${apiKey}`;
+  if (!clients.has(k)) clients.set(k, new OpenAI({ apiKey, baseURL, maxRetries: 0 }));
+  return clients.get(k)!;
+};
 
+/** Embeddings go to the configured embedding API (Gemini unless AI_* / EMBEDDING_* say otherwise). */
 export async function embed(texts: string[]): Promise<number[][]> {
+  const { baseURL, apiKey, model, batch } = embeddingProvider(config);
+  const client = clientFor(baseURL, apiKey);
   const out: number[][] = [];
-  for (let i = 0; i < texts.length; i += BATCH) {
-    const res = await api().embeddings.create({ model: config.EMBEDDING_MODEL, input: texts.slice(i, i + BATCH) }, { maxRetries: 1 });
+  for (let i = 0; i < texts.length; i += batch) {
+    const res = await client.embeddings.create({ model, input: texts.slice(i, i + batch) }, { maxRetries: 1 });
     out.push(...res.data.sort((a, b) => a.index - b.index).map((d) => d.embedding));
   }
   return out;
@@ -30,12 +39,14 @@ export async function embed(texts: string[]): Promise<number[][]> {
 const NVIDIA_MODEL = "poolside/laguna-xs-2.1";
 const GEMINI_MODEL = "gemini-3.1-flash-lite"; // zero-setup answer model, and the fallback when NVIDIA fails
 
-type Target = { client: OpenAI; model: string; provider: "nvidia" | "gemini" };
+type Target = { client: OpenAI; model: string; provider: "nvidia" | "gemini" | "custom" };
 const nvidiaTarget = (): Target => ({ client: nvidiaApi(), model: NVIDIA_MODEL, provider: "nvidia" });
 const geminiTarget = (model = GEMINI_MODEL): Target => ({ client: api(), model, provider: "gemini" });
 
 /** Primary: CHAT_MODEL if set (a "gemini*" name goes to Gemini, anything else to NVIDIA), else NVIDIA with a key, else Gemini. */
 function primary(): Target {
+  const own = customChat(config); // AI_BASE_URL / CHAT_BASE_URL: the user's own chat API, used as is
+  if (own) return { client: clientFor(own.baseURL, own.apiKey), model: own.model, provider: "custom" };
   if (config.CHAT_MODEL) {
     return config.CHAT_MODEL.startsWith("gemini") || !config.NVIDIA_API_KEY
       ? geminiTarget(config.CHAT_MODEL)
@@ -45,7 +56,7 @@ function primary(): Target {
 }
 /** The other provider, if there is one. Used at most once per request. */
 const fallback = (from: Target): Target | null =>
-  from.provider === "nvidia" ? geminiTarget() : config.NVIDIA_API_KEY ? nvidiaTarget() : null;
+  from.provider === "custom" ? null : from.provider === "nvidia" ? geminiTarget() : config.NVIDIA_API_KEY ? nvidiaTarget() : null;
 
 class LlmTimeoutError extends Error {
   constructor(ms: number) {

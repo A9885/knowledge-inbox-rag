@@ -13,7 +13,17 @@ npm run dev            # API on :4000, UI on :5173
 ```
 
 Optional: `cd server && npm run seed` loads sample notes and URLs; `npm test` runs the server tests; `npm run eval` runs the 13-question quality check.
-`GEMINI_API_KEY` alone is enough. `NVIDIA_API_KEY` is optional and makes answers faster (see "Models").
+`GEMINI_API_KEY` alone is enough (setup 1 below). `NVIDIA_API_KEY` is optional and makes answers faster (see "Models").
+
+### Which API does what
+
+Set in `server/.env` (details and examples are in `server/.env.example`). Embeddings and chat are separate jobs, so each can use its own API:
+
+1. **Default:** `GEMINI_API_KEY` only. Gemini embeds; chat uses NVIDIA if `NVIDIA_API_KEY` is set, otherwise Gemini (with a one-time fallback to the other).
+2. **One API for both:** `AI_BASE_URL` + `AI_API_KEY` (any OpenAI-compatible service, such as OpenRouter or OpenAI), plus `EMBEDDING_MODEL` and `CHAT_MODEL`.
+3. **Two APIs:** `EMBEDDING_BASE_URL` / `EMBEDDING_API_KEY` / `EMBEDDING_MODEL` for embeddings and `CHAT_BASE_URL` / `CHAT_API_KEY` / `CHAT_MODEL` for chat. Either side falls back to the `AI_*` lines. Gemini embeddings with a different chat API also works.
+
+The server checks the setup at start and says what is missing. **Changing the embedding model** makes the stored vectors unusable, so the database records which model made them: the server refuses to start on a mismatch until you run `npm run reindex` (in `server/`) once, which re-embeds everything. A custom chat API has no automatic fallback.
 
 ### Free-tier quota
 

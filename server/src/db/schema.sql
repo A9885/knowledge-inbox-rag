@@ -58,3 +58,9 @@ END;
 CREATE TRIGGER IF NOT EXISTS chunks_fts_title AFTER UPDATE OF title ON items BEGIN
   UPDATE chunks_fts SET title = new.title WHERE chunk_id IN (SELECT id FROM chunks WHERE item_id = new.id);
 END;
+
+-- Small facts about this database. embedding_model: which model made the stored vectors (vectors from different models cannot be compared).
+CREATE TABLE IF NOT EXISTS meta (
+  key   TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);

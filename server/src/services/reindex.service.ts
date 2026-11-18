@@ -1,6 +1,8 @@
 import { inTransaction } from "../db/connection.js";
 import { deleteChunksOfItem, insertChunks } from "../db/chunks.repository.js";
 import { listItemTexts } from "../db/items.repository.js";
+import { config } from "../config.js";
+import { setMeta } from "../db/meta.repository.js";
 import { log } from "../lib/logger.js";
 import { syncItem } from "../rag/vectorIndex.js";
 import { prepareChunks, toNewChunks } from "./prepare.js";
@@ -29,6 +31,7 @@ export async function reindexAll(): Promise<{ items: number; failed: number }> {
       log.error({ itemId: it.id, err: (e as Error).message }, "reindex.item_failed");
     }
   }
+  if (!failed) setMeta("embedding_model", config.EMBEDDING_MODEL); // every vector now comes from this model
   log.info({ items: items.length, failed, ms: Date.now() - t0 }, "reindex.done");
   return { items: items.length, failed };
 }
