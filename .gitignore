@@ -4,3 +4,4 @@ dist
 server/data/*.db*
 *.log
 server/eval/.cache/
+server/test-data/.scratch/
