@@ -39,8 +39,8 @@ function Question({ text, onPin }: { text: string; onPin?: () => Promise<void> }
   };
   const reveal = state === "idle" || state === "saving" ? "opacity-0 group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100" : "";
   return (
-    <div className="group ml-auto flex max-w-[90%] items-start gap-2">
-     <div className="flex min-w-0 flex-col items-end gap-1">
+    <div className="group flex items-start justify-end gap-2">
+     <div className="flex min-w-0 max-w-[85%] flex-col items-end gap-1">
       <div className="whitespace-pre-wrap break-words rounded-xl rounded-tr-sm bg-blue-100 px-4 py-2.5 text-[15px] leading-relaxed text-slate-900">{text}</div>
       {onPin &&
         (state === "saved" ? (
