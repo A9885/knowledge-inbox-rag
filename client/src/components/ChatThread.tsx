@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { Draft } from "../hooks/useChats";
 import type { Item, Message } from "../types";
 import { AnswerView } from "./AnswerView";
+import { guessIntent } from "../lib/intent";
 import { RichText } from "./RichText";
 
 interface Props {
@@ -105,7 +106,8 @@ export function ChatThread({ messages, draft, onSuggest, items, onOpenItem, onPi
     <div className="scroll-quiet min-h-0 flex-1 space-y-5 overflow-y-auto px-4 py-4" aria-live="polite">
       {messages.map((m, i) =>
         m.role === "user" ? (
-          <Question key={m.id} text={m.content} onPin={() => onPin(m.id, m.content)} />
+          // Only statements are worth saving: a saved question matches future questions better than the real note and crowds it out.
+          <Question key={m.id} text={m.content} onPin={guessIntent(m.content) === "note" ? () => onPin(m.id, m.content) : undefined} />
         ) : (
           <div key={m.id} className="flex max-w-[95%] gap-2">
             <Avatar />
