@@ -11,9 +11,9 @@
     "typecheck": "tsc --noEmit",
     "seed": "tsx scripts/seed.ts",
     "eval": "tsx scripts/eval.ts",
-    "test:data": "tsx scripts/test-data.ts",
     "reindex": "tsx scripts/reindex.ts",
     "seed:people": "tsx scripts/seed-people.ts",
+    "seed:meridian": "tsx scripts/seed-meridian.ts",
     "eval:full": "tsx scripts/eval-full.ts",
     "eval:compare": "tsx scripts/eval-compare.ts"
   },

@@ -90,6 +90,7 @@ NVIDIA is about 3x faster to the first word, so it stays the default when a key 
 - **DNS rebinding:** the SSRF check resolves the name, then the fetch resolves it again; a hostile DNS server could answer differently the second time. Fix: connect to the checked IP.
 - **Existing databases need `npm run reindex` once** (in `server/`) after upgrading, so old chunks are replaced by the new chunking. Old URL items also lack heading lines until re-added.
 - Small answer models write weaker follow-up suggestions than large ones, and sometimes skip them.
+- **Over-strict refusals:** sometimes the answer model says "I couldn't find that" when the right note was retrieved and shown to it, because the question's wording differs from the note (e.g. "Q4 budget ceiling vs actual" against an FY26 budget note and a November actual; "100% uptime" against a 99.9% availability objective). Retrieval is correct; the answer model is too literal. In testing the NVIDIA default refused the first (and the second on a different database); Gemini answered both. Prompt rules for partial answers help but do not fully fix it. Fix: a stronger answer model (`CHAT_MODEL=gemini-...`), or few-shot examples in the system prompt.
 - Top-k retrieval can't answer "list all X" questions over many records.
 - One user, one process: SQLite single writer, synchronous ingest, no auth, no rate limiting.
 

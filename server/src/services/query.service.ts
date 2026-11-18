@@ -43,7 +43,7 @@ type Result = { answer: string; sources: ReturnType<typeof toSource>[]; suggesti
 /** Turns raw model output into the answer, its cited sources and follow-up suggestions. */
 export function finalize(raw: string, hits: ScoredChunk[]): Result {
   const { answer, suggestions } = splitSuggestions(raw);
-  if (answer.includes(FALLBACK)) return { answer, sources: [], suggestions: [] };
+  if (answer.includes(FALLBACK)) return { answer: FALLBACK, sources: [], suggestions: [] }; // not found is always exactly the line, never line + commentary
 
   // Cited passage numbers, deduped, in order of first appearance.
   const refs = [...new Set([...answer.matchAll(/\[(\d+)\]/g)].map((m) => Number(m[1])))].filter(
