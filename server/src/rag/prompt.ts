@@ -39,9 +39,9 @@ Never add topics, names or details from the conversation unless the question nee
 If the question already names its own subject, output it exactly unchanged.
 Output only the question, nothing else.`;
 
-/** Only questions that lean on earlier turns need the rewrite call; standalone ones skip it (no cost, no drift). */
+/** Only questions that lean on earlier turns need the rewrite call; standalone ones skip it (no cost, no drift).
+ *  Short length alone is not a cue: a bare topic like "biryani" is standalone and was being rewritten into the old chat topic. */
 export const needsRewrite = (q: string): boolean =>
-  q.trim().split(/\s+/).length <= 6 ||
   /\b(it|its|that|this|those|these|they|them|there|he|she|his|her|also|too|again)\b/i.test(q) ||
   /^(and|also|what about|how about|why|so)\b/i.test(q.trim());
 

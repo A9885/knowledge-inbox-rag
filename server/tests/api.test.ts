@@ -122,8 +122,11 @@ describe("api", () => {
     await request(app).post("/query").send({ question: "When is my meeting with Ravi on Friday about the budget?", conversationId: id });
     expect(rewrites()).toBe(before); // standalone question: no rewrite, so old topics cannot leak in
 
+    await request(app).post("/query").send({ question: "biryani", conversationId: id });
+    expect(rewrites()).toBe(before); // a bare one-word topic is standalone too, not a follow-up
+
     const msgs = (await request(app).get(`/conversations/${id}`)).body.messages;
-    expect(msgs.map((m: { role: string }) => m.role)).toEqual(["user", "assistant", "user", "assistant", "user", "assistant"]);
+    expect(msgs.map((m: { role: string }) => m.role)).toEqual(["user", "assistant", "user", "assistant", "user", "assistant", "user", "assistant"]);
     expect(msgs[1].sources[0]).toMatchObject({ ref: 1 });
 
     const list = (await request(app).get("/conversations")).body.conversations;
