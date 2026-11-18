@@ -2,10 +2,11 @@ import { randomUUID } from "node:crypto";
 import { inTransaction } from "../db/connection.js";
 import { insertChunks } from "../db/chunks.repository.js";
 import { isUserMessageOf } from "../db/conversations.repository.js";
-import { getItem, insertItem, messageAlreadySaved, type ItemDto } from "../db/items.repository.js";
+import { findDuplicate, getItem, insertItem, messageAlreadySaved, type ItemDto } from "../db/items.repository.js";
 import { AppError } from "../lib/errors.js";
 import { syncItem } from "../rag/vectorIndex.js";
 import { fetchPage } from "../lib/fetchUrl.js";
+import { looksBlocked } from "../lib/pageCheck.js";
 import { log } from "../lib/logger.js";
 import { noteTitle, prepareChunks, toNewChunks } from "./prepare.js";
 
@@ -28,9 +29,15 @@ export async function ingest(input: Input): Promise<ItemDto> {
   const pin = input.type === "chat" ? { conversationId: input.conversationId, messageId: input.messageId } : undefined;
   if (pin) checkPin(pin.conversationId, pin.messageId);
 
+  if (type !== "chat") {
+    const dup = findDuplicate(type, content); // never overwrites or deletes: the caller is told where the existing one is
+    if (dup) throw new AppError("ALREADY_SAVED", 409, `Already in your inbox: ${dup.title}`, undefined, { itemId: dup.id, title: dup.title });
+  }
+
   let title: string, text: string;
   if (type === "url") {
     ({ title, text } = await fetchPage(content));
+    if (looksBlocked(title, text)) throw new AppError("PAGE_BLOCKED", 422, "This page blocked automatic reading. Paste the text as a note instead.");
   } else {
     title = noteTitle(content);
     text = content;

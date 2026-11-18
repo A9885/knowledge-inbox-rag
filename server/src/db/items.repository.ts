@@ -1,3 +1,4 @@
+import { canonicalUrl } from "../lib/pageCheck.js";
 import { db } from "./connection.js";
 
 export type ItemType = "note" | "url" | "chat" | "memory";
@@ -53,6 +54,14 @@ export const updateItem = (id: string, title: string, rawContent: string, update
 
 /** Chunks go with it (ON DELETE CASCADE). */
 export const deleteItem = (id: string): boolean => db.prepare("DELETE FROM items WHERE id = ?").run(id).changes > 0;
+
+/** An already saved note with the same text, or link with the same canonical address. Never changes anything. */
+export function findDuplicate(type: "note" | "url", content: string): { id: string; title: string } | undefined {
+  if (type === "note") return db.prepare("SELECT id, title FROM items WHERE source_type = 'note' AND trim(raw_content) = ?").get(content.trim()) as never;
+  const want = canonicalUrl(content);
+  const rows = db.prepare("SELECT id, title, source_url AS u FROM items WHERE source_type = 'url'").all() as { id: string; title: string; u: string }[];
+  return rows.find((r) => canonicalUrl(r.u) === want);
+}
 
 export const listItemTexts = (): { id: string; title: string; rawContent: string }[] =>
   db.prepare("SELECT id, title, raw_content AS rawContent FROM items ORDER BY created_at").all() as never;

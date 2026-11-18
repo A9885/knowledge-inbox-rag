@@ -150,4 +150,12 @@ describe("api", () => {
   it("GET /health", async () => {
     expect((await request(app).get("/health")).body).toEqual({ status: "ok" });
   });
+
+  it("saving the same note twice → 409 ALREADY_SAVED with the id of the existing one; nothing is overwritten", async () => {
+    await request(app).post("/ingest").send({ type: "note", content: NOTE }); // may already exist from an earlier test
+    const res = await request(app).post("/ingest").send({ type: "note", content: `  ${NOTE}\n` });
+    expect(res.status).toBe(409);
+    expect(res.body.error.code).toBe("ALREADY_SAVED");
+    expect(res.body.error.itemId).toBeTruthy();
+  });
 });

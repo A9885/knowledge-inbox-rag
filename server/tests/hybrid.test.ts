@@ -3,7 +3,8 @@ import { fuse, ftsQuery, newestOfDuplicates, splitTopics } from "../src/rag/hybr
 
 describe("hybrid helpers", () => {
   it("ftsQuery quotes every word so punctuation and operators cannot break MATCH", () => {
-    expect(ftsQuery('Who has code EMP-4471?')).toBe('"code" OR "emp-4471"');
+    expect(ftsQuery('Who has code EMP-4471?')).toBe('"code" OR "codes" OR "emp-4471" OR "emp-4471s"');
+    expect(ftsQuery("any movies?")).toBe('"movies" OR "movie"'); // singular and plural both searched; "any" is a stopword
     const nasty = ftsQuery('foo" OR (bar* NEAR/2 baz) AND ^x : - "');
     expect(nasty).not.toMatch(/[*()^:]/);
     expect(nasty.match(/"/g)!.length % 2).toBe(0);

@@ -9,7 +9,7 @@ export type ScoredChunk = Omit<StoredChunk, "embedding"> & { score: number };
 // (relevant ~0.7, unrelated ~0.5), so "top 5" alone drags in unrelated items. A chunk that is
 // clearly relevant on its own (>= RELEVANCE_HIGH_SCORE) stays even when a better one outscores it.
 
-export type Candidate = { title: string; score: number; kept: boolean; reason: "window" | "high_score" | "below_window" | "top_k_cut";
+export type Candidate = { title: string; score: number; kept: boolean; reason: "window" | "high_score" | "keyword" | "below_window" | "top_k_cut";
   // Where this chunk ranked in each search and after fusion (1 = best, null = not in that list).
   vecRank?: number | null; kwRank?: number | null; finalRank?: number };
 
@@ -27,6 +27,9 @@ export function retrieveTopK(queryVec: Float32Array, k = 5, minScore = 0.25) {
   });
   return { hits, candidates };
 }
+
+/** A close but not good enough match: offered as "Did you mean", never used to write an answer. */
+export type NearMatch = { itemId: string; title: string; type: ScoredChunk["type"]; score: number };
 
 /** Best chunk similarity for each vector. */
 export const bestScores = (vecs: Float32Array[]): number[] => vecs.map((v) => vectorIndex.search(v, 1)[0]?.score ?? 0);

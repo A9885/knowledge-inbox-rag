@@ -2,13 +2,18 @@ import { searchKeywords } from "../db/chunks.repository.js";
 import { config } from "../config.js";
 import { embedQueries } from "./embedder.js";
 import { fuse, ftsQuery, newestOfDuplicates, RECENCY_BOOST, splitTopics, type RankedList } from "./hybrid.js";
-import { retrieveTopK, type Candidate, type ScoredChunk } from "./retriever.js";
+import { retrieveTopK, type Candidate, type NearMatch, type ScoredChunk } from "./retriever.js";
 import { vectorIndex } from "./vectorIndex.js";
 
 const POOL = 20; // top 20 from each search, as in the plan
 const MIN_SCORE = 0.25;
+const STRONG_KW = 3; // a chunk in the top 3 of the keyword search is kept even when its cosine is outside the window
+const ANCHORED_WINDOW = 0.03; // when such a keyword match exists, chunks without one must be this close to the best to stay (topic filter)
+const NEAR_STRONG = 0.6; // ...or this similar even without a shared word
+const NEAR_MIN = 0.5; // "Did you mean" only offers items at least this similar
 
-type Result = { hits: ScoredChunk[]; candidates: Candidate[]; embedMs: number; searchMs: number };
+
+type Result = { hits: ScoredChunk[]; candidates: Candidate[]; near: NearMatch[]; embedMs: number; searchMs: number };
 
 /** Embeds the question (and its sub-topics in the same call), then searches by vector only or by vector + keyword. */
 export async function retrieve(question: string, topK: number): Promise<Result> {
@@ -17,7 +22,7 @@ export async function retrieve(question: string, topK: number): Promise<Result> 
   const t0 = Date.now();
   const vecs = (await embedQueries(texts)).map((v) => Float32Array.from(v));
   const t1 = Date.now();
-  const found = hybrid ? hybridSearch(texts, vecs, topK) : retrieveTopK(vecs[0], topK);
+  const found = hybrid ? hybridSearch(texts, vecs, topK) : { ...retrieveTopK(vecs[0], topK), near: [] as NearMatch[] };
   return { ...found, embedMs: t1 - t0, searchMs: Date.now() - t1 };
 }
 
@@ -50,21 +55,39 @@ function hybridSearch(texts: string[], vecs: Float32Array[], topK: number) {
     .map((id) => ({ id, final: (fused.get(id) ?? 0) + (boosted.has(id) ? RECENCY_BOOST : 0) }))
     .sort((a, b) => b.final - a.final)
     .map((x) => x.id);
-  if (!order.length) return { hits: [] as ScoredChunk[], candidates: [] as Candidate[] };
+  if (!order.length) return { hits: [] as ScoredChunk[], candidates: [] as Candidate[], near: [] as NearMatch[] };
 
   const { RELEVANCE_WINDOW, RELEVANCE_HIGH_SCORE } = config;
   const best = Math.max(...order.map((id) => cos.get(id)!));
-  const inWindow = order.filter((id) => cos.get(id)! >= best - RELEVANCE_WINDOW || cos.get(id)! >= RELEVANCE_HIGH_SCORE);
+  const strong = (id: string) => (kwRank.get(id) ?? Infinity) <= STRONG_KW;
+  const anchored = order.some(strong);
+  const win = anchored ? Math.min(RELEVANCE_WINDOW, ANCHORED_WINDOW) : RELEVANCE_WINDOW;
+  const inWindow = order.filter((id) => strong(id) || cos.get(id)! >= best - win || cos.get(id)! >= RELEVANCE_HIGH_SCORE);
   const keptIds = new Set(inWindow.slice(0, topK));
   const hits = [...keptIds].map((id) => ({ ...meta.get(id)!, score: cos.get(id)! }));
   const candidates: Candidate[] = order.slice(0, 10).map((id, r) => ({
     title: meta.get(id)!.title,
     score: Math.round(cos.get(id)! * 100) / 100,
     kept: keptIds.has(id),
-    reason: keptIds.has(id) ? (cos.get(id)! >= best - RELEVANCE_WINDOW ? "window" : "high_score") : inWindow.includes(id) ? "top_k_cut" : "below_window",
+    reason: keptIds.has(id) ? (cos.get(id)! >= best - win ? "window" : cos.get(id)! >= RELEVANCE_HIGH_SCORE ? "high_score" : "keyword") : inWindow.includes(id) ? "top_k_cut" : "below_window",
     vecRank: vecRank.get(id) ?? null,
     kwRank: kwRank.get(id) ?? null,
     finalRank: r + 1,
   }));
-  return { hits, candidates };
+  // Near matches must share a word with the question (keyword match) or be clearly similar: similarity alone floats around 0.5 for everything.
+  const nearPool = order.filter((id) => kwRank.has(id) || cos.get(id)! >= NEAR_STRONG).map((id) => ({ ...meta.get(id)!, score: cos.get(id)! }));
+  return { hits, candidates, near: nearMatches(nearPool) };
+}
+
+/** Up to 3 different items from the best matches (already ordered), at least NEAR_MIN similar. */
+function nearMatches(ranked: ScoredChunk[]): NearMatch[] {
+  const seen = new Set<string>();
+  const out: NearMatch[] = [];
+  for (const c of ranked) {
+    if (c.score < NEAR_MIN || seen.has(c.itemId)) continue;
+    seen.add(c.itemId);
+    out.push({ itemId: c.itemId, title: c.title, type: c.type, score: Math.round(c.score * 100) / 100 });
+    if (out.length === 3) break;
+  }
+  return out;
 }

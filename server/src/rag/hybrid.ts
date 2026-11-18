@@ -1,6 +1,6 @@
 // Pure helpers for hybrid (vector + keyword) retrieval. No I/O.
 
-const STOP = new Set("a an and are as at be by can did do does for from has have how i in is it its me my of on or our so than that the their them then there these they this to was we were what when where which who whom whose why will with you your".split(" "));
+const STOP = new Set("a an and are as at be by can did do does for from has have how i in is it its me my of on or our so than that the their them then there these they this to was we were what when where which who whom whose why will with you your any all some about saved".split(" "));
 
 /**
  * Turns free text into a safe FTS5 MATCH expression: every word is double-quoted (so punctuation and
@@ -9,7 +9,9 @@ const STOP = new Set("a an and are as at be by can did do does for from has have
 export function ftsQuery(text: string): string {
   const words = text.toLowerCase().match(/[\p{L}\p{N}][\p{L}\p{N}_-]*/gu) ?? [];
   const keep = [...new Set(words.filter((w) => w.length > 1 && !STOP.has(w)))].slice(0, 12);
-  return keep.map((w) => `"${w}"`).join(" OR ");
+  // The keyword index does no stemming: also search the singular or plural, so "movies" finds "movie" and back.
+  const forms = keep.flatMap((w) => [w, w.length > 3 && w.endsWith("s") ? w.slice(0, -1) : `${w}s`]);
+  return [...new Set(forms)].map((w) => `"${w}"`).join(" OR ");
 }
 
 /** "gym and birthday" -> ["gym", "birthday"]. Splits on and / & / commas, at most 3 parts of 2+ words; [] if not multi-topic. */

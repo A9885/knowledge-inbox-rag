@@ -8,6 +8,7 @@ import { conversationRoutes } from "./routes/conversations.routes.js";
 import { ingestRoutes } from "./routes/ingest.routes.js";
 import { itemsRoutes } from "./routes/items.routes.js";
 import { queryRoutes } from "./routes/query.routes.js";
+import { suggestionsRoutes } from "./routes/suggestions.routes.js";
 
 export function createApp() {
   const app = express();
@@ -25,7 +26,7 @@ export function createApp() {
   app.use(express.json({ limit: "1mb" }));
 
   app.get("/health", (_req, res) => void res.json({ status: "ok" }));
-  app.use(ingestRoutes, itemsRoutes, queryRoutes, conversationRoutes);
+  app.use(ingestRoutes, itemsRoutes, queryRoutes, conversationRoutes, suggestionsRoutes);
   app.use(notFound);
   app.use(errorHandler);
   return app;
