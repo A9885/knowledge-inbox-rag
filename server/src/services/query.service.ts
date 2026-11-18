@@ -41,7 +41,7 @@ type Debug = {
 type Result = { answer: string; sources: ReturnType<typeof toSource>[]; suggestions: string[]; debug?: Debug };
 
 /** Turns raw model output into the answer, its cited sources and follow-up suggestions. */
-function finalize(raw: string, hits: ScoredChunk[]): Result {
+export function finalize(raw: string, hits: ScoredChunk[]): Result {
   const { answer, suggestions } = splitSuggestions(raw);
   if (answer.includes(FALLBACK)) return { answer, sources: [], suggestions: [] };
 
@@ -50,8 +50,11 @@ function finalize(raw: string, hits: ScoredChunk[]): Result {
     (n) => n >= 1 && n <= hits.length,
   );
   // Show what the answer cited. If it cited nothing, show only the single closest match, not every hit.
-  const sources = refs.length ? refs.map((n) => toSource(hits[n - 1], n, true)) : [toSource(hits[0], 1, false)];
-  return { answer, sources, suggestions };
+  // Renumber the cited passages 1..k in order of appearance, so one cited source reads [1], not [4].
+  const renumber = new Map(refs.map((n, i) => [n, i + 1]));
+  const text = answer.replace(/\[(\d+)\]/g, (m, n) => (renumber.has(Number(n)) ? `[${renumber.get(Number(n))}]` : m));
+  const sources = refs.length ? refs.map((n) => toSource(hits[n - 1], renumber.get(n)!, true)) : [toSource(hits[0], 1, false)];
+  return { answer: text, sources, suggestions };
 }
 
 /** Follow-ups ("and the hotel?") only make sense with the chat's memory: turn them into a standalone question. */
