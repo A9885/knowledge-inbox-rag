@@ -4,6 +4,7 @@ import type { Draft } from "../hooks/useChats";
 import type { Item, Message } from "../types";
 import { AnswerView } from "./AnswerView";
 import { guessIntent } from "../lib/intent";
+import { SparkleIcon, UserIcon } from "./icons";
 import { RichText } from "./RichText";
 
 interface Props {
@@ -18,8 +19,8 @@ interface Props {
 
 function Avatar() {
   return (
-    <span aria-hidden className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-700 text-[11px] font-bold text-white">
-      AI
+    <span aria-hidden className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-600 text-white">
+      <SparkleIcon />
     </span>
   );
 }
@@ -38,8 +39,9 @@ function Question({ text, onPin }: { text: string; onPin?: () => Promise<void> }
   };
   const reveal = state === "idle" || state === "saving" ? "opacity-0 group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100" : "";
   return (
-    <div className="group ml-auto flex max-w-[85%] flex-col items-end gap-1">
-      <div className="whitespace-pre-wrap rounded-xl rounded-tr-sm bg-blue-700 px-4 py-2.5 text-[15px] leading-relaxed text-white">{text}</div>
+    <div className="group ml-auto flex max-w-[90%] items-start gap-2">
+     <div className="flex min-w-0 flex-col items-end gap-1">
+      <div className="whitespace-pre-wrap break-words rounded-xl rounded-tr-sm bg-blue-100 px-4 py-2.5 text-[15px] leading-relaxed text-slate-900">{text}</div>
       {onPin &&
         (state === "saved" ? (
           <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">✓ Saved to your inbox</span>
@@ -58,6 +60,10 @@ function Question({ text, onPin }: { text: string; onPin?: () => Promise<void> }
             {state === "failed" ? "Retry saving" : state === "saving" ? "Saving…" : "Save to inbox"}
           </button>
         ))}
+     </div>
+     <span aria-hidden className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-600">
+       <UserIcon size={20} />
+     </span>
     </div>
   );
 }
@@ -75,7 +81,7 @@ function EmptyChat({ hasItems, onSuggest, onStartNote }: { hasItems: boolean; on
   }, [hasItems]);
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-4 overflow-y-auto p-6 text-center">
-      <span aria-hidden className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 text-lg font-bold text-blue-800">AI</span>
+      <span aria-hidden className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-600 text-white"><SparkleIcon size={24} /></span>
       <div>
         <h2 className="text-lg font-semibold text-slate-900">{hasItems ? "Ask your inbox" : "Start with a note or link"}</h2>
         <p className="mt-1 max-w-sm text-sm text-slate-600">
@@ -83,7 +89,7 @@ function EmptyChat({ hasItems, onSuggest, onStartNote }: { hasItems: boolean; on
         </p>
       </div>
       {!hasItems && (
-        <button type="button" onClick={onStartNote} className="min-h-10 rounded-lg bg-blue-700 px-4 text-sm font-medium text-white hover:bg-blue-800">
+        <button type="button" onClick={onStartNote} className="min-h-10 rounded-lg bg-blue-600 px-4 text-sm font-medium text-white hover:bg-blue-700">
           Save your first note
         </button>
       )}
@@ -106,7 +112,7 @@ function EmptyChat({ hasItems, onSuggest, onStartNote }: { hasItems: boolean; on
 function Thinking() {
   return (
     <span className="inline-flex items-center gap-1 text-sm text-slate-600" role="status">
-      <span>Thinking</span>
+      <span>Thinking…</span>
       {[0, 150, 300].map((d) => (
         <span key={d} aria-hidden className="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-500" style={{ animationDelay: `${d}ms` }} />
       ))}

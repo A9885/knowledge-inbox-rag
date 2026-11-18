@@ -1,4 +1,5 @@
-import type { FormEvent, KeyboardEvent } from "react";
+import type { FormEvent, KeyboardEvent, ReactNode } from "react";
+import { DocIcon, LinkIcon, SendIcon } from "./icons";
 
 export type Mode = "ask" | "note" | "url";
 
@@ -41,64 +42,60 @@ export function AskBox({ value, onChange, onSubmit, mode, onMode, loading, savin
     }
   };
   const label = MODES.find((m) => m.id === mode)!.label;
+  // Save note / Save link are switches: press again to go back to Ask.
+  const toggle = (m: Mode) => onMode(mode === m ? "ask" : m);
+  const saveBtn = (m: Exclude<Mode, "ask">, icon: ReactNode, name: string) => (
+    <button
+      type="button"
+      aria-pressed={mode === m}
+      disabled={busy}
+      onClick={() => toggle(m)}
+      className={`flex min-h-10 items-center gap-2 rounded-lg border px-3 text-sm font-medium disabled:opacity-60 ${
+        mode === m ? "border-blue-500 bg-blue-50 text-blue-900" : "border-slate-300 bg-white text-slate-800 hover:bg-slate-50"
+      }`}
+    >
+      {icon} {name}
+    </button>
+  );
 
   return (
-    <form onSubmit={submit} className="shrink-0 space-y-2 border-t border-slate-200 bg-white p-3">
-      <div className="flex flex-col gap-2 md:flex-row md:items-end">
-        <div role="radiogroup" aria-label="What should this message do?" className="inline-flex shrink-0 self-start rounded-full bg-slate-100 p-1 md:self-end">
-          {MODES.map((m) => (
-            <button
-              key={m.id}
-              type="button"
-              role="radio"
-              aria-checked={mode === m.id}
-              disabled={busy}
-              onClick={() => onMode(m.id)}
-              className={`min-h-9 whitespace-nowrap rounded-full px-3 text-sm font-medium ${
-                mode === m.id ? "bg-white text-blue-800 shadow-sm" : "text-slate-700 hover:text-slate-900"
-              } disabled:opacity-60`}
-            >
-              {m.label}
-            </button>
-          ))}
-        </div>
-        <div className="flex min-w-0 flex-1 items-end gap-2">
-          <textarea
-            id="askbox-input"
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            onKeyDown={onKey}
-            disabled={busy}
-            rows={Math.min(MAX_ROWS, Math.max(1, value.split("\n").length))}
-            placeholder={PLACEHOLDER[mode]}
-            aria-label={PLACEHOLDER[mode]}
-            className="max-h-40 min-h-11 min-w-0 flex-1 resize-none overflow-y-auto rounded-lg border border-slate-300 px-3 py-2.5 text-[15px] leading-snug disabled:bg-slate-100"
-          />
-          <button
-            disabled={busy || !value.trim()}
-            aria-label={saving ? "Saving" : loading ? "Waiting for the answer" : label}
-            title={`${label} (Enter)`}
-            className="flex h-11 min-w-11 shrink-0 items-center justify-center gap-1 rounded-lg bg-blue-700 px-3 text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {busy ? (
-              <span className="text-sm">{saving ? "Saving…" : "Asking…"}</span>
-            ) : (
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden>
-                <path d="M5 12h14m0 0l-6-6m6 6l-6 6" />
-              </svg>
-            )}
-          </button>
-        </div>
+    <form onSubmit={submit} className="shrink-0 space-y-2 border-t border-slate-200 bg-white p-4">
+      <div className="flex items-end gap-2">
+        <textarea
+          id="askbox-input"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          onKeyDown={onKey}
+          disabled={busy}
+          rows={Math.min(MAX_ROWS, Math.max(1, value.split("\n").length))}
+          placeholder={PLACEHOLDER[mode]}
+          aria-label={PLACEHOLDER[mode]}
+          className="max-h-40 min-h-12 min-w-0 flex-1 resize-none overflow-y-auto rounded-xl border border-slate-300 px-4 py-3 text-[15px] leading-snug disabled:bg-slate-100"
+        />
+        <button
+          disabled={busy || !value.trim()}
+          aria-label={saving ? "Saving" : loading ? "Waiting for the answer" : label}
+          title={`${label} (Enter)`}
+          className="flex h-12 min-w-12 shrink-0 items-center justify-center gap-1 rounded-xl bg-blue-600 px-3 text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {busy ? <span className="text-sm">{saving ? "Saving…" : "Asking…"}</span> : <SendIcon size={20} />}
+        </button>
       </div>
-      <p className="text-xs text-slate-600">
-        {mode === "ask" && value.startsWith("/") ? (
-          <>
-            Commands: <code>/note your text</code> saves a note, <code>/link https://…</code> saves a link.
-          </>
-        ) : (
-          "Enter to send, Shift+Enter for a new line. In Ask, type /note or /link to save instead."
-        )}
-      </p>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex gap-2">
+          {saveBtn("note", <DocIcon />, "Save note")}
+          {saveBtn("url", <LinkIcon />, "Save link")}
+        </div>
+        <p className="text-xs text-slate-600">
+          {mode === "ask" && value.startsWith("/") ? (
+            <>
+              <code>/note text</code> saves a note, <code>/link https://…</code> saves a link.
+            </>
+          ) : (
+            "Enter to send · Shift+Enter for a new line"
+          )}
+        </p>
+      </div>
     </form>
   );
 }

@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import * as api from "../api/client";
 import { ErrorBanner } from "./ErrorBanner";
-import { domainOf, ICONS, TYPE_LABEL } from "./ItemList";
+import { TypeIcon } from "./icons";
+import { domainOf, TYPE_LABEL } from "./ItemList";
 
 interface Props {
   itemId: string;
@@ -66,7 +67,7 @@ export function ItemPanel({ itemId, startEditing = false, onClose, onEdit, onDel
           <div className="min-w-0">
             {item && (
               <p className="text-xs font-medium text-slate-600">
-                <span aria-hidden>{ICONS[item.type]}</span> {TYPE_LABEL[item.type]} · saved {saved}
+                <span className="inline-flex items-center gap-1"><TypeIcon type={item.type} size={14} /> {TYPE_LABEL[item.type]} · saved {saved}</span>
               </p>
             )}
             <h3 className="break-words text-base font-semibold text-slate-900">{item?.title ?? "Loading…"}</h3>
@@ -99,14 +100,14 @@ export function ItemPanel({ itemId, startEditing = false, onClose, onEdit, onDel
                   <button disabled={busy} onClick={() => setDraft(null)} className="min-h-10 rounded-lg border border-slate-300 px-4">
                     Cancel
                   </button>
-                  <button disabled={busy || !draft.trim()} onClick={save} className="min-h-10 rounded-lg bg-blue-700 px-4 font-medium text-white hover:bg-blue-800 disabled:opacity-50">
+                  <button disabled={busy || !draft.trim()} onClick={save} className="min-h-10 rounded-lg bg-blue-600 px-4 font-medium text-white hover:bg-blue-700 disabled:opacity-50">
                     {busy ? "Saving…" : "Save"}
                   </button>
                 </>
               ) : (
                 <>
                   {item.type !== "url" && (
-                    <button onClick={() => setDraft(item.content)} className="min-h-10 rounded-lg bg-blue-700 px-4 font-medium text-white hover:bg-blue-800">
+                    <button onClick={() => setDraft(item.content)} className="min-h-10 rounded-lg bg-blue-600 px-4 font-medium text-white hover:bg-blue-700">
                       Edit
                     </button>
                   )}

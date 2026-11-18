@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { Debug, NearMatch, Source } from "../types";
-import { domainOf, ICONS, shortDate, TYPE_LABEL } from "./ItemList";
+import { ExternalIcon, TypeIcon } from "./icons";
+import { domainOf, shortDate, TypePill } from "./ItemList";
 import { RichText } from "./RichText";
 
 function DebugDetails({ debug: d }: { debug: Debug }) {
@@ -35,13 +36,14 @@ interface Props {
   onSuggest: (q: string) => void;
 }
 
+const heading = "mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-600";
+
 export function AnswerView({ idPrefix, answer, sources, suggestions, debug, didYouMean, editedItems, onOpenItem, onSuggest }: Props) {
-  const [openRef, setOpenRef] = useState<number | null>(null);
+  const [lit, setLit] = useState<number | null>(null); // the source whose [n] badge was clicked
   const uncited = sources.length > 0 && !sources[0].cited;
-  const open = sources.find((s) => s.ref === openRef);
   const show = (n: number) => {
     if (!sources.some((s) => s.ref === n)) return;
-    setOpenRef(n);
+    setLit(n);
     requestAnimationFrame(() => document.getElementById(`${idPrefix}-source-${n}`)?.scrollIntoView({ behavior: "smooth", block: "nearest" }));
   };
 
@@ -50,53 +52,52 @@ export function AnswerView({ idPrefix, answer, sources, suggestions, debug, didY
       <div className="rounded-xl rounded-tl-sm border border-slate-200 bg-white px-4 py-3 shadow-sm">
         <RichText text={answer} onCite={show} />
         {sources.length > 0 && (
-          <div className="mt-3 border-t border-slate-100 pt-2">
-            <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-600">Sources</p>
-            {uncited && <p className="mb-1 text-xs text-slate-600">The answer cited no source; showing the closest match.</p>}
-            <div className="flex flex-wrap gap-1.5">
+          <div className="mt-3 border-t border-slate-100 pt-3">
+            <p className={heading}>Sources</p>
+            {uncited && <p className="mb-1.5 text-xs text-slate-600">The answer cited no source; showing the closest match.</p>}
+            <ul className="space-y-2">
               {sources.map((s) => (
-                <button
+                <li
                   key={s.chunkId}
-                  type="button"
-                  onClick={() => setOpenRef(openRef === s.ref ? null : s.ref)}
-                  aria-expanded={openRef === s.ref}
-                  title={`Match score ${s.score.toFixed(2)}`}
-                  className={`flex max-w-full items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-xs ${
-                    openRef === s.ref ? "border-blue-600 bg-blue-50 text-blue-900" : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
-                  }`}
+                  id={`${idPrefix}-source-${s.ref}`}
+                  className={`rounded-lg border p-3 text-sm ${lit === s.ref ? "border-blue-400 bg-blue-50" : "border-slate-200 bg-white"}`}
                 >
-                  <span aria-hidden>{ICONS[s.type]}</span>
-                  <span className="font-semibold">{s.ref}</span>
-                  <span className="max-w-48 truncate">{s.title}</span>
-                  {s.updatedAt && <span className="shrink-0 whitespace-nowrap text-slate-600">· {shortDate(s.updatedAt)}</span>}
-                  {(s.flagged || editedItems.has(s.itemId)) && <span aria-label="Warning: edited or instruction-like text" className="text-amber-700">⚠</span>}
-                </button>
+                  <div className="flex items-center gap-2">
+                    <span className="text-slate-600"><TypeIcon type={s.type} /></span>
+                    <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-blue-100 px-1 text-[11px] font-semibold text-blue-800">{s.ref}</span>
+                    <button type="button" onClick={() => onOpenItem(s.itemId)} className="min-w-0 truncate text-left font-semibold text-slate-900 hover:underline" title={s.title}>
+                      {s.title}
+                    </button>
+                    <TypePill type={s.type} />
+                    <span className="ml-auto flex shrink-0 items-center gap-2">
+                      {s.updatedAt && <span className="hidden text-xs text-slate-600 sm:inline">{shortDate(s.updatedAt)}</span>}
+                      {s.sourceUrl ? (
+                        <a href={s.sourceUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs font-medium text-blue-700 hover:underline" title={s.sourceUrl}>
+                          {domainOf(s.sourceUrl)} <ExternalIcon />
+                        </a>
+                      ) : (
+                        <button type="button" onClick={() => onOpenItem(s.itemId)} className="flex items-center gap-1 text-xs font-medium text-blue-700 hover:underline">
+                          View source <ExternalIcon />
+                        </button>
+                      )}
+                    </span>
+                  </div>
+                  <p className="mt-1.5 line-clamp-2 break-words text-slate-600">{s.snippet}</p>
+                  {(s.flagged || editedItems.has(s.itemId)) && (
+                    <p className="mt-1 text-xs font-medium text-amber-800">
+                      {editedItems.has(s.itemId) && "⚠ Edited after this answer was written. "}
+                      {s.flagged && "⚠ This text contains instruction-like wording."}
+                    </p>
+                  )}
+                </li>
               ))}
-            </div>
-            {open && (
-              <div id={`${idPrefix}-source-${open.ref}`} className="mt-2 space-y-1 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
-                <div className="flex items-start justify-between gap-2">
-                  <button type="button" onClick={() => onOpenItem(open.itemId)} className="min-h-8 text-left font-medium text-slate-900 hover:underline">
-                    {open.title}
-                  </button>
-                  <span className="shrink-0 text-xs text-slate-600">{TYPE_LABEL[open.type]}{open.updatedAt ? ` · saved ${shortDate(open.updatedAt)}` : ""} · match {open.score.toFixed(2)}</span>
-                </div>
-                {open.sourceUrl && (
-                  <a href={open.sourceUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-700 hover:underline">
-                    {domainOf(open.sourceUrl)} ↗
-                  </a>
-                )}
-                {editedItems.has(open.itemId) && <p className="text-xs font-medium text-amber-800">⚠ Edited after this answer was written</p>}
-                {open.flagged && <p className="text-xs font-medium text-amber-800">⚠ This text contains instruction-like wording</p>}
-                <p className="text-slate-700">{open.snippet}</p>
-              </div>
-            )}
+            </ul>
           </div>
         )}
       </div>
       {!!didYouMean?.length && (
         <div>
-          <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-600">Did you mean</p>
+          <p className={heading}>Did you mean</p>
           <div className="flex flex-col items-start gap-1.5">
             {didYouMean.map((n) => (
               <button
@@ -104,11 +105,11 @@ export function AnswerView({ idPrefix, answer, sources, suggestions, debug, didY
                 type="button"
                 onClick={() => onOpenItem(n.itemId)}
                 title={`Open ${n.title}`}
-                className="flex max-w-full items-center gap-1.5 rounded-full border border-slate-300 bg-white px-3 py-1.5 text-left text-xs text-slate-800 hover:bg-slate-50"
+                className="flex max-w-full items-center gap-2 rounded-full border border-slate-300 bg-white px-3 py-1.5 text-left text-xs text-slate-800 hover:bg-slate-50"
               >
-                <span aria-hidden>{ICONS[n.type]}</span>
+                <TypeIcon type={n.type} size={14} />
                 <span className="truncate">{n.title}</span>
-                <span className="shrink-0 text-blue-800">Open</span>
+                <span className="shrink-0 font-medium text-blue-800">Open</span>
               </button>
             ))}
           </div>
@@ -116,7 +117,7 @@ export function AnswerView({ idPrefix, answer, sources, suggestions, debug, didY
       )}
       {suggestions.length > 0 && (
         <div>
-          <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-600">Try asking</p>
+          <p className={heading}>Try asking</p>
           <div className="flex flex-col items-start gap-1.5">
             {suggestions.map((q) => (
               <button

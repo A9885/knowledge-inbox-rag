@@ -1,4 +1,6 @@
+import { useEffect, useRef, useState } from "react";
 import type { Conversation } from "../types";
+import { DotsIcon, PlusIcon } from "./icons";
 
 interface Props {
   tabs: Conversation[];
@@ -8,46 +10,78 @@ interface Props {
   onClose: (id: string) => void;
 }
 
-/** First question, cut short: tabs are for finding a chat again, not for reading it. */
-const cut = (t: string) => (t.length > 24 ? `${t.slice(0, 24).trimEnd()}…` : t);
+/** First question, cut short: a chat is found again by its title, not read in the list. */
+const cut = (t: string, n = 40) => (t.length > n ? `${t.slice(0, n).trimEnd()}…` : t);
 
+/** The chat header: New chat, the open chat's title, and a "…" menu to switch to or delete any chat. */
 export function ChatTabs({ tabs, activeId, disabled, onOpen, onClose }: Props) {
+  const [open, setOpen] = useState(false);
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const away = (e: MouseEvent) => !box.current?.contains(e.target as Node) && setOpen(false);
+    const esc = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    document.addEventListener("mousedown", away);
+    document.addEventListener("keydown", esc);
+    return () => {
+      document.removeEventListener("mousedown", away);
+      document.removeEventListener("keydown", esc);
+    };
+  }, [open]);
+  const title = tabs.find((t) => t.id === activeId)?.title ?? "New chat";
+
   return (
-    <div className="flex items-center gap-2 border-b border-slate-200 px-3 py-2">
+    <div className="flex items-center gap-3 border-b border-slate-200 bg-white px-4 py-3">
       <button
         disabled={disabled}
         onClick={() => onOpen(null)}
         aria-pressed={activeId === null}
-        className={`flex min-h-10 shrink-0 items-center gap-1 rounded-lg px-3 text-sm font-semibold ${
-          activeId === null ? "bg-blue-700 text-white" : "border border-blue-700 text-blue-800 hover:bg-blue-50"
-        } disabled:opacity-60`}
+        className="flex min-h-10 shrink-0 items-center gap-1.5 rounded-lg bg-blue-600 px-4 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
       >
-        <span aria-hidden>＋</span> New chat
+        <PlusIcon /> New chat
       </button>
-      <div role="tablist" aria-label="Chats" className="flex min-w-0 flex-1 gap-1 overflow-x-auto px-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [mask-image:linear-gradient(to_right,transparent,#000_12px,#000_calc(100%-12px),transparent)]">
-        {tabs.map((t) => {
-          const active = t.id === activeId;
-          return (
-            <div
-              key={t.id}
-              className={`group flex shrink-0 items-center rounded-lg border text-sm ${
-                active ? "border-blue-600 bg-blue-50 font-semibold text-blue-900" : "border-transparent text-slate-700 hover:bg-slate-100"
-              } ${disabled ? "opacity-60" : ""}`}
-            >
-              <button role="tab" aria-selected={active} disabled={disabled} onClick={() => onOpen(t.id)} className="min-h-10 truncate pl-3 pr-1" title={t.title}>
-                {cut(t.title)}
-              </button>
-              <button
-                disabled={disabled}
-                aria-label={`Delete chat ${t.title}`}
-                onClick={() => window.confirm(`Delete "${t.title}" and its history?`) && onClose(t.id)}
-                className={`flex h-10 w-8 items-center justify-center text-slate-600 hover:text-red-700 focus-visible:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100 ${active ? "" : "opacity-0"}`}
-              >
-                ×
-              </button>
-            </div>
-          );
-        })}
+      <span aria-hidden className="h-6 w-px bg-slate-200" />
+      <h2 className="min-w-0 flex-1 truncate text-base font-semibold text-slate-900" title={title}>{cut(title, 60)}</h2>
+      <div ref={box} className="relative">
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          aria-haspopup="menu"
+          aria-expanded={open}
+          aria-label={`Your chats (${tabs.length})`}
+          className="flex h-10 w-10 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+        >
+          <DotsIcon />
+        </button>
+        {open && (
+          <div role="menu" aria-label="Chats" className="absolute right-0 top-full z-10 mt-1 max-h-72 w-72 overflow-y-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
+            {!tabs.length && <p className="px-3 py-2 text-sm text-slate-600">No chats yet. Ask a question to start one.</p>}
+            {tabs.map((t) => (
+              <div key={t.id} className={`flex items-center ${t.id === activeId ? "bg-blue-50" : "hover:bg-slate-100"}`}>
+                <button
+                  role="menuitem"
+                  disabled={disabled}
+                  onClick={() => {
+                    setOpen(false);
+                    onOpen(t.id);
+                  }}
+                  className={`min-h-10 min-w-0 flex-1 truncate px-3 text-left text-sm ${t.id === activeId ? "font-semibold text-blue-900" : "text-slate-800"} disabled:opacity-60`}
+                  title={t.title}
+                >
+                  {cut(t.title)}
+                </button>
+                <button
+                  disabled={disabled}
+                  aria-label={`Delete chat ${t.title}`}
+                  onClick={() => window.confirm(`Delete "${t.title}" and its history?`) && (setOpen(false), onClose(t.id))}
+                  className="flex h-10 w-10 shrink-0 items-center justify-center text-slate-600 hover:text-red-700 disabled:opacity-60"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
