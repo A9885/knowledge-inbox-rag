@@ -1,0 +1,1 @@
+{ "name": "meridian", "dataset": "meridian", "retrieval": { "mode": "hybrid", "fusion": "weighted", "topK": 5 }, "answers": true }

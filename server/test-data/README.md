@@ -31,3 +31,22 @@ DB_PATH=./data/meridian.db DEBUG=true npm run dev
 In another terminal: `cd client && npm run dev`, then open http://localhost:5173.
 `DEBUG=true` adds a "Show details" panel under each answer (rewritten question, every candidate with its score, timings).
 Stop the server and restart without `DB_PATH` to go back to your real inbox.
+
+## Evaluate it (after review of the questions)
+
+`eval/datasets/meridian.json` has the question set (id, category, expected record ids, expected keywords, and `forbidKeywords` for the injection checks).
+Retrieval-only (no answers, so only question embeddings, cached in `eval/.cache/`):
+
+```bash
+cd server && DB_PATH=./data/meridian.db npm run eval:full -- --config configs/meridian.json --retrieval-only
+```
+
+Full run (answers, needs the server on the same database with `DEBUG=true`):
+
+```bash
+cd server && DB_PATH=./data/meridian.db DEBUG=true PORT=4001 npm run dev
+# in another terminal:
+cd server && DB_PATH=./data/meridian.db API_URL=http://localhost:4001 npm run eval:full -- --config configs/meridian.json
+```
+
+Expected ids match the start of the saved note title, so `FACT004` matches the note whose first line starts `FACT004 · ...`.
