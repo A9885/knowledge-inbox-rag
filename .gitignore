@@ -2,6 +2,7 @@ node_modules
 dist
 .env
 server/data/*.db*
+server/data/_archive/
 *.log
 server/eval/.cache/
 server/test-data/.scratch/

@@ -14,6 +14,10 @@ function timeAgo(iso: string) {
 }
 
 export const ICONS: Record<Item["type"], string> = { note: "📝", url: "🔗", chat: "💬", memory: "🧠" };
+/** One word per kind, used everywhere the UI names a saved thing. */
+export const TYPE_LABEL: Record<Item["type"], string> = { note: "Note", url: "Link", chat: "Chat", memory: "Memory" };
+/** "12 Nov" — a short date for source chips and lists. */
+export const shortDate = (iso?: string) => (iso ? new Date(iso).toLocaleDateString("en", { day: "numeric", month: "short" }) : "");
 
 interface Props {
   items: Item[];
@@ -30,15 +34,15 @@ export function ItemList({ items, loading, onOpen, onDelete }: Props) {
     <section className="flex min-h-0 flex-1 flex-col" aria-labelledby="inbox-title">
       <div className="flex items-baseline justify-between px-4 pb-2 pt-4">
         <h2 id="inbox-title" className="font-semibold text-slate-900">Inbox</h2>
-        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700">{items.length} saved</span>
+        <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-medium text-slate-800">{items.length} saved</span>
       </div>
       <div className="scroll-quiet min-h-0 flex-1 overflow-y-auto px-3 pb-3">
         {loading && !items.length ? (
           <p className="p-2 text-sm text-slate-600">Loading…</p>
         ) : !items.length ? (
           <div className="rounded-xl border border-dashed border-slate-300 p-4 text-center text-sm text-slate-600">
-            <p className="font-medium text-slate-800">Nothing saved yet</p>
-            <p className="mt-1">Use the chat bar: switch to <b>Save note</b> or <b>Save link</b>, or type <code>/note</code> or <code>/url</code>.</p>
+            <p className="font-medium text-slate-800">Your inbox is empty</p>
+            <p className="mt-1">Save a note or link, then ask a question about it. In the chat bar pick <b>Save note</b> or <b>Save link</b>, or type <code>/note</code> or <code>/link</code>.</p>
           </div>
         ) : (
           <ul className="space-y-2">
@@ -52,7 +56,7 @@ export function ItemList({ items, loading, onOpen, onDelete }: Props) {
                     </button>
                     <p className="mt-0.5 line-clamp-2 text-slate-600">{i.preview}</p>
                     <div className="mt-1 flex items-center justify-between gap-2">
-                      <span className="text-xs text-slate-600">{timeAgo(i.createdAt)}</span>
+                      <span className="text-xs text-slate-600">{TYPE_LABEL[i.type]} · {timeAgo(i.createdAt)}</span>
                       <div className={`flex gap-0.5 transition-opacity ${reveal}`}>
                         <button onClick={() => onOpen(i.id, false)} aria-label={`View ${i.title}`} className={`${act} text-blue-800 hover:bg-blue-50`}>
                           View
@@ -63,7 +67,7 @@ export function ItemList({ items, loading, onOpen, onDelete }: Props) {
                           </button>
                         )}
                         <button
-                          onClick={() => window.confirm("Delete this item and its searchable text?") && void onDelete(i.id)}
+                          onClick={() => window.confirm(`Delete this ${TYPE_LABEL[i.type].toLowerCase()} from your inbox? This cannot be undone.`) && void onDelete(i.id)}
                           aria-label={`Delete ${i.title}`}
                           className={`${act} text-red-700 hover:bg-red-50`}
                         >

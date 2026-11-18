@@ -24,7 +24,7 @@ function Avatar() {
   );
 }
 
-/** A user message. With onPin, a small "Save to inbox" button appears on hover/focus (always on touch); the live draft has none. */
+/** A user message. With onPin, a small "Save this message as a note in your inbox" button appears on hover/focus (always on touch); the live draft has none. */
 function Question({ text, onPin }: { text: string; onPin?: () => Promise<void> }) {
   const [state, setState] = useState<"idle" | "saving" | "saved" | "failed">("idle");
   const pin = async () => {
@@ -42,14 +42,14 @@ function Question({ text, onPin }: { text: string; onPin?: () => Promise<void> }
       <div className="whitespace-pre-wrap rounded-2xl rounded-tr-sm bg-blue-700 px-4 py-2.5 text-[15px] leading-relaxed text-white">{text}</div>
       {onPin &&
         (state === "saved" ? (
-          <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">✓ Saved to inbox</span>
+          <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">✓ Saved to your inbox</span>
         ) : (
           <button
             type="button"
             onClick={pin}
             disabled={state === "saving"}
-            title="Save to inbox"
-            aria-label="Save to inbox"
+            title="Save this message as a note in your inbox"
+            aria-label="Save this message as a note in your inbox"
             className={`flex min-h-8 items-center gap-1 rounded-full px-2 text-xs text-slate-600 transition-opacity hover:bg-slate-100 hover:text-slate-900 ${reveal}`}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
@@ -66,7 +66,7 @@ function Question({ text, onPin }: { text: string; onPin?: () => Promise<void> }
 function Thinking() {
   return (
     <span className="inline-flex items-center gap-1 text-sm text-slate-600" role="status">
-      <span>Thinking</span>
+      <span>Searching your inbox</span>
       {[0, 150, 300].map((d) => (
         <span key={d} aria-hidden className="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-500" style={{ animationDelay: `${d}ms` }} />
       ))}
@@ -89,16 +89,23 @@ export function ChatThread({ messages, draft, onSuggest, items, onOpenItem, onPi
       <div className="flex flex-1 flex-col items-center justify-center gap-4 p-6 text-center">
         <span aria-hidden className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 text-lg font-bold text-blue-800">AI</span>
         <div>
-          <h2 className="text-lg font-semibold text-slate-900">Ask your knowledge inbox</h2>
-          <p className="mt-1 text-sm text-slate-600">Answers come only from the notes and links you saved, with sources.</p>
+          <h2 className="text-lg font-semibold text-slate-900">{items.length ? "Ask your inbox" : "Start with a note or link"}</h2>
+          <p className="mt-1 max-w-sm text-sm text-slate-600">
+            {items.length
+              ? "Answers come only from the notes and links in your inbox, with sources."
+              : "Save a note or link, then ask a question about it. Use Save note or Save link in the chat bar below. Answers will cite their sources."}
+          </p>
         </div>
-        <div className="flex w-full max-w-sm flex-col gap-2">
-          {EXAMPLES.map((q) => (
-            <button key={q} type="button" onClick={() => onSuggest(q)} className="min-h-10 rounded-xl border border-slate-300 bg-white px-4 py-2 text-left text-sm text-slate-800 hover:border-blue-400 hover:bg-blue-50">
-              {q}
-            </button>
-          ))}
-        </div>
+        {items.length > 0 && (
+          <div className="flex w-full max-w-sm flex-col gap-2">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">Try asking</p>
+            {EXAMPLES.map((q) => (
+              <button key={q} type="button" onClick={() => onSuggest(q)} className="min-h-10 rounded-xl border border-slate-300 bg-white px-4 py-2 text-left text-sm text-slate-800 hover:border-blue-400 hover:bg-blue-50">
+                {q}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     );
   }
@@ -109,7 +116,7 @@ export function ChatThread({ messages, draft, onSuggest, items, onOpenItem, onPi
           // Only statements are worth saving: a saved question matches future questions better than the real note and crowds it out.
           <Question key={m.id} text={m.content} onPin={guessIntent(m.content) === "note" ? () => onPin(m.id, m.content) : undefined} />
         ) : (
-          <div key={m.id} className="flex max-w-[95%] gap-2">
+          <div key={m.id} className="flex max-w-[95%] gap-2 md:max-w-2xl">
             <Avatar />
             <div className="min-w-0 flex-1">
               <AnswerView
@@ -129,7 +136,7 @@ export function ChatThread({ messages, draft, onSuggest, items, onOpenItem, onPi
       {draft && (
         <>
           <Question text={draft.question} />
-          <div className="flex max-w-[95%] gap-2">
+          <div className="flex max-w-[95%] gap-2 md:max-w-2xl">
             <Avatar />
             <div className="min-w-0 rounded-2xl rounded-tl-sm border border-slate-200 bg-white px-4 py-3 shadow-sm">
               {draft.text ? <RichText text={draft.text} /> : <Thinking />}

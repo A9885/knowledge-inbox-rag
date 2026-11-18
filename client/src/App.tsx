@@ -19,6 +19,7 @@ export default function App() {
   const [view, setView] = useState<"chat" | "inbox">("chat"); // small screens show one panel at a time, chat first
   const [notices, setNotices] = useState<Notice[]>([]);
   const [chip, setChip] = useState<Chip | null>(null);
+  const [saving, setSaving] = useState<"note" | "url" | null>(null);
   const run = (q: string) => {
     if (chats.loading) return; // suggestion chips stay visible while an answer streams
     setQuestion("");
@@ -30,11 +31,14 @@ export default function App() {
     setChip(null);
     setQuestion("");
     setMode("ask");
+    setSaving(type);
     try {
       const item = await addItem(type, content);
       setNotices((n) => [...n, { id: Date.now(), kind: "saved", item }]);
     } catch (e) {
       setNotices((n) => [...n, { id: Date.now(), kind: "error", text: (e as Error).message }]);
+    } finally {
+      setSaving(null);
     }
   };
   const undo = async (n: Extract<Notice, { kind: "saved" }>) => {
@@ -63,7 +67,7 @@ export default function App() {
     <button
       onClick={() => setView(v)}
       aria-pressed={view === v}
-      className={`min-h-10 rounded-full px-4 text-sm font-medium ${view === v ? "bg-blue-700 text-white" : "text-slate-700 hover:bg-slate-100"}`}
+      className={`min-h-10 whitespace-nowrap rounded-full px-4 text-sm font-medium ${view === v ? "bg-blue-700 text-white" : "text-slate-700 hover:bg-slate-100"}`}
     >
       {label}
     </button>
@@ -71,15 +75,17 @@ export default function App() {
 
   return (
     <div className="flex h-dvh flex-col bg-slate-100 text-slate-900">
-      <header className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-2.5">
-        <div>
-          <h1 className="text-lg font-bold leading-tight">AI Knowledge Inbox</h1>
-          <p className="text-xs text-slate-600">Save notes and links. Ask questions. Get answers with sources.</p>
+      <header className="shrink-0 border-b border-slate-200 bg-white">
+        <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-3 px-4 py-2.5">
+          <div className="min-w-0">
+            <h1 className="text-lg font-bold leading-tight">AI Knowledge Inbox</h1>
+            <p className="hidden text-xs text-slate-600 sm:block">Save notes and links. Ask questions. Get answers with sources.</p>
+          </div>
+          <nav aria-label="View" className="flex shrink-0 gap-1 rounded-full bg-slate-100 p-1 lg:hidden">
+            {tabBtn("chat", "Chat")}
+            {tabBtn("inbox", `Inbox (${items.length})`)}
+          </nav>
         </div>
-        <nav aria-label="View" className="flex gap-1 rounded-full bg-slate-100 p-1 lg:hidden">
-          {tabBtn("chat", "Chat")}
-          {tabBtn("inbox", `Inbox (${items.length})`)}
-        </nav>
       </header>
       <main className="mx-auto flex min-h-0 w-full max-w-6xl flex-1 gap-4 p-3 lg:p-4">
         <aside
@@ -100,13 +106,14 @@ export default function App() {
           <ChatNotices
             notices={notices}
             chip={chip}
+            saving={saving}
             onView={(id) => setPanel({ id, edit: false })}
             onUndo={undo}
             onSave={save}
             onAskChip={(t) => { setChip(null); run(t); }}
             onDismissChip={() => setChip(null)}
           />
-          <AskBox value={question} onChange={setQuestion} onSubmit={submit} mode={mode} onMode={setMode} loading={chats.loading} />
+          <AskBox value={question} onChange={setQuestion} onSubmit={submit} mode={mode} onMode={setMode} loading={chats.loading} saving={saving} />
         </section>
       </main>
       {panel && (

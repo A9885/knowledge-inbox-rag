@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import * as api from "../api/client";
 import { ErrorBanner } from "./ErrorBanner";
+import { ICONS, TYPE_LABEL } from "./ItemList";
 
 interface Props {
   itemId: string;
@@ -10,7 +11,7 @@ interface Props {
   onDelete: (id: string) => Promise<void>;
 }
 
-/** Full text of one saved item, with edit and delete. URLs are read-only (re-add them instead). */
+/** Full text of one saved note, link or chat, with edit and delete. Links are read-only (save the link again instead). */
 export function ItemPanel({ itemId, startEditing = false, onClose, onEdit, onDelete }: Props) {
   const [item, setItem] = useState<Awaited<ReturnType<typeof api.getItem>> | null>(null);
   const [draft, setDraft] = useState<string | null>(null); // non-null = editing
@@ -46,16 +47,19 @@ export function ItemPanel({ itemId, startEditing = false, onClose, onEdit, onDel
     });
   const remove = () =>
     run(async () => {
-      if (!window.confirm("Delete this item and its searchable text?")) return;
+      if (!window.confirm(`Delete this ${item ? TYPE_LABEL[item.type].toLowerCase() : "entry"} from your inbox? This cannot be undone.`)) return;
       await onDelete(itemId);
       onClose();
     });
 
   return (
-    <div role="dialog" aria-modal="true" aria-label="Saved item" className="fixed inset-0 z-10 flex items-center justify-center bg-black/40 p-4">
+    <div role="dialog" aria-modal="true" aria-label={item ? `${TYPE_LABEL[item.type]}: ${item.title}` : "Loading"} className="fixed inset-0 z-10 flex items-center justify-center bg-black/40 p-4">
       <div className="max-h-[85vh] w-full max-w-xl space-y-3 overflow-y-auto rounded-2xl bg-white p-5 text-sm shadow-xl">
         <div className="flex justify-between gap-2">
-          <h3 className="font-semibold">{item?.title ?? "Loading…"}</h3>
+          <div className="min-w-0">
+            {item && <p className="text-xs font-medium text-slate-600"><span aria-hidden>{ICONS[item.type]}</span> {TYPE_LABEL[item.type]}</p>}
+            <h3 className="font-semibold">{item?.title ?? "Loading…"}</h3>
+          </div>
           <button onClick={onClose} aria-label="Close" className="flex h-10 w-10 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-900">
             ✕
           </button>

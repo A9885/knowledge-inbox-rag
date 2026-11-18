@@ -9,6 +9,7 @@ interface Props {
   mode: Mode;
   onMode: (m: Mode) => void;
   loading: boolean;
+  saving: Mode | null; // a note or link is being saved right now
 }
 
 const MODES: { id: Mode; label: string }[] = [
@@ -18,14 +19,15 @@ const MODES: { id: Mode; label: string }[] = [
 ];
 
 const PLACEHOLDER: Record<Mode, string> = {
-  ask: "Ask about your saved content…",
-  note: "Type a note to save to your inbox…",
-  url: "Paste a link to save to your inbox…",
+  ask: "Ask a question about your inbox…",
+  note: "Type a note to save in your inbox…",
+  url: "Paste a link to save in your inbox…",
 };
 
-/** The one place to type: pick Ask / Save note / Save link, or use /note and /url in Ask mode. Enter sends, Shift+Enter adds a line. */
-export function AskBox({ value, onChange, onSubmit, mode, onMode, loading }: Props) {
-  const send = () => value.trim() && !loading && onSubmit(value.trim());
+/** The one place to type: pick Ask / Save note / Save link, or use /note and /link in Ask mode. Enter sends, Shift+Enter adds a line. */
+export function AskBox({ value, onChange, onSubmit, mode, onMode, loading, saving }: Props) {
+  const busy = loading || !!saving;
+  const send = () => value.trim() && !busy && onSubmit(value.trim());
   const submit = (e: FormEvent) => {
     e.preventDefault();
     send();
@@ -46,7 +48,7 @@ export function AskBox({ value, onChange, onSubmit, mode, onMode, loading }: Pro
             type="button"
             role="radio"
             aria-checked={mode === m.id}
-            disabled={loading}
+            disabled={busy}
             onClick={() => onMode(m.id)}
             className={`min-h-10 rounded-full px-3 text-sm font-medium sm:px-4 ${
               mode === m.id ? "bg-white text-blue-800 shadow-sm" : "text-slate-700 hover:text-slate-900"
@@ -61,19 +63,19 @@ export function AskBox({ value, onChange, onSubmit, mode, onMode, loading }: Pro
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={onKey}
-          disabled={loading}
+          disabled={busy}
           rows={Math.min(5, Math.max(1, value.split("\n").length))}
           placeholder={PLACEHOLDER[mode]}
           aria-label={PLACEHOLDER[mode]}
           className="min-h-11 flex-1 resize-none rounded-xl border border-slate-300 px-3 py-2.5 text-[15px] leading-snug disabled:bg-slate-100"
         />
         <button
-          disabled={loading || !value.trim()}
-          aria-label={loading ? "Waiting for the answer" : mode === "ask" ? "Ask" : "Save"}
-          title={mode === "ask" ? "Ask (Enter)" : "Save (Enter)"}
+          disabled={busy || !value.trim()}
+          aria-label={saving ? "Saving" : loading ? "Waiting for the answer" : MODES.find((m) => m.id === mode)!.label}
+          title={`${MODES.find((m) => m.id === mode)!.label} (Enter)`}
           className="flex h-11 min-w-11 items-center justify-center gap-1 rounded-xl bg-blue-700 px-3 text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {loading ? <span className="text-sm">Asking…</span> : (
+          {busy ? <span className="text-sm">{saving ? "Saving…" : "Asking…"}</span> : (
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden>
               <path d="M5 12h14m0 0l-6-6m6 6l-6 6" />
             </svg>
@@ -83,10 +85,10 @@ export function AskBox({ value, onChange, onSubmit, mode, onMode, loading }: Pro
       <p className="text-xs text-slate-600">
         {mode === "ask" && value.startsWith("/") ? (
           <>
-            Commands: <code>/note your text</code> saves a note, <code>/url https://…</code> saves a link.
+            Commands: <code>/note your text</code> saves a note, <code>/link https://…</code> saves a link.
           </>
         ) : (
-          "Enter to send, Shift+Enter for a new line. Tip: type /note or /url to save from Ask."
+          "Enter to send, Shift+Enter for a new line. In Ask, type /note or /link to save instead."
         )}
       </p>
     </form>

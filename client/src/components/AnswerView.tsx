@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { Debug, Source } from "../types";
-import { ICONS } from "./ItemList";
+import { ICONS, shortDate, TYPE_LABEL } from "./ItemList";
 import { RichText } from "./RichText";
 
 // "https://en.wikipedia.org/wiki/Goa" → "en.wikipedia.org/wiki/Goa"
@@ -78,7 +78,8 @@ export function AnswerView({ idPrefix, answer, sources, suggestions, debug, edit
                   <span aria-hidden>{ICONS[s.type]}</span>
                   <span className="font-semibold">{s.ref}</span>
                   <span className="max-w-48 truncate">{s.title}</span>
-                  {(s.flagged || editedItems.has(s.itemId)) && <span aria-label="warning" className="text-amber-700">⚠</span>}
+                  {s.updatedAt && <span className="shrink-0 whitespace-nowrap text-slate-600">· {shortDate(s.updatedAt)}</span>}
+                  {(s.flagged || editedItems.has(s.itemId)) && <span aria-label="Warning: edited or instruction-like text" className="text-amber-700">⚠</span>}
                 </button>
               ))}
             </div>
@@ -88,15 +89,15 @@ export function AnswerView({ idPrefix, answer, sources, suggestions, debug, edit
                   <button type="button" onClick={() => onOpenItem(open.itemId)} className="min-h-8 text-left font-medium text-slate-900 hover:underline">
                     {open.title}
                   </button>
-                  <span className="shrink-0 text-xs text-slate-600">match {open.score.toFixed(2)}</span>
+                  <span className="shrink-0 text-xs text-slate-600">{TYPE_LABEL[open.type]}{open.updatedAt ? ` · saved ${shortDate(open.updatedAt)}` : ""} · match {open.score.toFixed(2)}</span>
                 </div>
                 {open.sourceUrl && (
                   <a href={open.sourceUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-700 hover:underline">
                     {shortLink(open.sourceUrl)} ↗
                   </a>
                 )}
-                {editedItems.has(open.itemId) && <p className="text-xs font-medium text-amber-800">⚠ note edited since</p>}
-                {open.flagged && <p className="text-xs font-medium text-amber-800">⚠ contains instruction-like text</p>}
+                {editedItems.has(open.itemId) && <p className="text-xs font-medium text-amber-800">⚠ Edited after this answer was written</p>}
+                {open.flagged && <p className="text-xs font-medium text-amber-800">⚠ This text contains instruction-like wording</p>}
                 <p className="text-slate-700">{open.snippet}</p>
               </div>
             )}

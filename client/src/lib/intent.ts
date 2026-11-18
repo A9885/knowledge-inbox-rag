@@ -10,8 +10,8 @@ export function guessIntent(text: string): "question" | "note" | "url" | "unclea
   return "note";
 }
 
-/** `/note <text>` or `/url <link>` typed in Ask mode. */
+/** `/note <text>` or `/link <address>` (`/url` still works) typed in Ask mode. */
 export function parseCommand(text: string): { type: "note" | "url"; content: string } | null {
-  const m = text.trim().match(/^\/(note|url)\s+([\s\S]+)$/i);
-  return m ? { type: m[1].toLowerCase() as "note" | "url", content: m[2].trim() } : null;
+  const m = text.trim().match(/^\/(note|url|link)\s+([\s\S]+)$/i);
+  return m ? { type: m[1].toLowerCase() === "note" ? "note" : "url", content: m[2].trim() } : null;
 }
