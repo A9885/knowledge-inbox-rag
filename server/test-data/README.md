@@ -1,38 +1,33 @@
-# Test data
+# Test data: Meridian
 
-Put your own records here, then run one command to inject them and check the responses.
+`records.json` is a fictional company ("Meridian Workspace"): one JSON object per line, 157 records
+(135 notes, 12 chat messages, 10 link pages). It includes dated facts that change, "don't quote X" traps
+and one prompt-injection test (`MSG009`).
 
-```bash
-cd server && npm run test:data
-```
+## Load it into a separate database
 
-It saves everything into a **throwaway database** (`test-data/.scratch/`, deleted afterwards), so your real inbox is never touched. It makes real calls to Gemini (and NVIDIA if its key is set), so it uses embedding quota: one request per batch of chunks, plus one per question.
-
-## Files
-
-| File | What to put in it |
-| --- | --- |
-| `records.json` | `notes`: list of note texts. `urls`: list of public http(s) links. |
-| `questions.json` | One entry per question to ask. |
-
-A question entry:
-
-```json
-{ "question": "When is my dentist appointment?", "expectKeywords": ["Tuesday", "4:30"] }
-```
-
-| Field | Meaning |
-| --- | --- |
-| `question` | What to ask. |
-| `expectKeywords` | Words the answer must contain (case-insensitive). Optional. |
-| `expectSource` | Part of a source title that must be cited. Optional. |
-| `expectNotFound` | `true` if the answer should be "I couldn't find that" with no sources. Optional. |
-
-## Flags
+Never into your real inbox. The seed script refuses `data/inbox.db`.
 
 ```bash
-npm run test:data -- --verbose   # print full answers
-npm run test:data -- --keep      # keep the scratch DB at test-data/.scratch/test.db
+cd server
+DB_PATH=./data/meridian.db npm run seed:meridian
 ```
 
-The starter records and questions are examples. Replace them with yours.
+- Each record is saved as a **note** through the normal ingest path. The first line is
+  `<id> · <title> — <author>, <department>, <date>`, plus `· channel #x` for messages and `· <url>` for link pages.
+- The example.com links are **not** fetched.
+- It prints progress, skips records already saved, and stops with a clear message if Gemini returns a quota error (429).
+  Run the same command again later to continue.
+- It makes one embedding request per record (about 157), so check your Gemini quota first.
+- `npm run seed:meridian -- --dry-run` prints the first note texts and calls nothing.
+
+## Run the app on that database
+
+```bash
+cd server
+DB_PATH=./data/meridian.db DEBUG=true npm run dev
+```
+
+In another terminal: `cd client && npm run dev`, then open http://localhost:5173.
+`DEBUG=true` adds a "Show details" panel under each answer (rewritten question, every candidate with its score, timings).
+Stop the server and restart without `DB_PATH` to go back to your real inbox.

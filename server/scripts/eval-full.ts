@@ -11,7 +11,7 @@ import { hitAt1, mean, percentile, recallAt, reciprocalRank, titleMatches } from
 const API = process.env.API_URL ?? "http://localhost:4000";
 const EVAL_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "../eval");
 
-type Q = { id: string; question: string; category: string; expectItemIds: string[]; expectKeywords: string[]; expectNotFound?: boolean; conversation?: string };
+type Q = { id: string; question: string; category: string; expectItemIds: string[]; expectKeywords: string[]; forbidKeywords?: string[]; expectNotFound?: boolean; conversation?: string };
 type Cfg = { name: string; dataset: string; retrieval: { mode: "vector" | "hybrid"; fusion?: "rrf" | "weighted"; topK: number }; answers: boolean };
 type Row = {
   q: Q; ranked: string[]; kept: string[]; recall3?: number; recall5?: number; rr?: number; hit1?: number;
@@ -80,7 +80,8 @@ try {
         row.firstMs = r.firstMs;
         row.totalMs = r.totalMs;
         row.cited = r.sources.map((s) => s.title);
-        row.kw = q.expectKeywords.length ? (q.expectKeywords.every((k) => low.includes(k.toLowerCase())) ? 1 : 0) : undefined;
+        const forbidden = (q.forbidKeywords ?? []).some((k) => low.includes(k.toLowerCase())); // injection checks: the answer must never contain these
+        row.kw = q.expectKeywords.length || q.forbidKeywords?.length ? (q.expectKeywords.every((k) => low.includes(k.toLowerCase())) && !forbidden ? 1 : 0) : undefined;
         row.cite = q.expectItemIds.length ? q.expectItemIds.filter((e) => row.cited!.some((t) => titleMatches(t, e))).length / q.expectItemIds.length : undefined;
         row.nf = q.expectNotFound ? (low.includes("couldn't find") && !r.sources.length ? 1 : 0) : undefined;
         if (q.conversation) searchText = r.debug?.rewrittenQuestion; // needs DEBUG=true on the server
@@ -127,7 +128,7 @@ const failed = rows.filter((r) => r.error || r.kw === 0 || r.nf === 0 || (r.cite
 const md = [
   `# Eval ${cfg.name} (${date})`,
   `Dataset \`${cfg.dataset}\` (${questions.length} questions), retrieval \`${cfg.retrieval.mode}${cfg.retrieval.mode === "hybrid" ? `/${cfg.retrieval.fusion ?? "rrf"}` : ""}\` topK ${cfg.retrieval.topK}, answers ${cfg.answers ? "on" : "off"}.`,
-  `\nRecall/MRR/Hit@1 use the raw ranked list (before the relevance filter). Keyword acc = all expected keywords in the answer. Citation acc = share of expected items cited. Not-found ok = said "couldn't find" with no sources.\n`,
+  `\nRecall/MRR/Hit@1 use the raw ranked list (before the relevance filter). Keyword acc = all expected keywords in the answer and none of the forbidden ones. Citation acc = share of expected items cited. Not-found ok = said "couldn't find" with no sources.\n`,
   "| Category | n | Recall@3 | Recall@5 | MRR | Hit@1 | Keyword acc | Citation acc | Not-found ok |",
   "|---|---|---|---|---|---|---|---|---|",
   line("**Overall**", overall),
@@ -138,7 +139,7 @@ const md = [
   `\n## Problem questions (${failed.length})\n`,
   ...failed.map((r) =>
     [`- **${r.q.id}** (${r.q.category}) ${r.q.question}`,
-      `  - expected: ${r.q.expectItemIds.join(", ") || "(not found)"}; keywords: ${r.q.expectKeywords.join(", ") || "-"}`,
+      `  - expected: ${r.q.expectItemIds.join(", ") || "(not found)"}; keywords: ${r.q.expectKeywords.join(", ") || "-"}${r.q.forbidKeywords?.length ? `; forbidden: ${r.q.forbidKeywords.join(", ")}` : ""}`,
       `  - retrieved top 5: ${r.ranked.slice(0, 5).map((t) => t.slice(0, 28)).join(" | ") || "-"}`,
       `  - answer: ${r.error ?? (r.answer ?? "-").replace(/\s+/g, " ").slice(0, 200)}`].join("\n")),
 ].join("\n");
