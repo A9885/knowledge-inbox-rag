@@ -6,3 +6,15 @@ server/data/_archive/
 *.log
 server/eval/.cache/
 server/test-data/.scratch/
+.DS_Store
+business-rag-dataset/
+server/test-data/
+server/eval/results/*
+!server/eval/results/2026-11-19-hybrid-weighted.md
+server/scripts/seed-meridian.ts
+server/scripts/meridianRecords.ts
+server/scripts/eval-compare.ts
+server/eval/configs/meridian.json
+server/eval/datasets/meridian.json
+client/README.md
+server/tests/meridianRecords.test.ts

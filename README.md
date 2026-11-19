@@ -15,15 +15,42 @@ npm run dev            # API on http://localhost:4000, UI on http://localhost:51
 
 **Ports busy?** The API reads `PORT` (default 4000, set it in `server/.env`). Vite takes the next free UI port on its own (5174, ...) and prints it. If the API is not on 4000, create `client/.env` with `VITE_API_URL=http://localhost:<port>`. CORS accepts any `localhost` / `127.0.0.1` port. `npm run setup` uses `npm ci`, so installs follow the lockfiles exactly.
 
-Optional: `cd server && npm run seed` loads sample notes and URLs. `NVIDIA_API_KEY` is optional and makes answers faster (see [Models](#design-decisions-and-tradeoffs)).
+Optional: `cd server && npm run seed` loads sample notes and URLs (needs the server running). `NVIDIA_API_KEY` is optional: see [AI modes](#ai-modes).
 
-Other scripts (run in `server/`): `npm test`, `npm run eval`, `npm run reindex`, `npm run seed:people`, `npm run seed:meridian`, `npm run eval:full`, `npm run eval:compare`. Root: `npm test`.
+Other scripts (run in `server/`): `npm test`, `npm run eval` (server running), `npm run reindex`, `npm run seed:people`, `npm run eval:full`. Root: `npm test`.
 
-### Which API does what
+## AI modes
+
+Two ready-made setups. Set the lines in `server/.env`; nothing else changes.
+
+| | Mode 1: Gemini only (default) | Mode 2: Gemini + NVIDIA |
+|---|---|---|
+| Keys | `GEMINI_API_KEY` | `GEMINI_API_KEY` + `NVIDIA_API_KEY` |
+| Embeddings | Gemini `gemini-embedding-001` | Gemini `gemini-embedding-001` |
+| Answers | Gemini `gemini-3.1-flash-lite` | NVIDIA `poolside/laguna-xs-2.1` |
+| First word (median, 5 runs, 2026-11-18) | ~1057 ms | ~323 ms |
+| Strengths | one key, quick setup; better at partial answers | fastest answers |
+| Limits | slower; no fallback provider, so a Gemini overload or timeout is an error | stricter: sometimes refuses when the note is related but not an exact match |
+| Best for | reviewers, quick setup | speed |
+
+```bash
+# Mode 1: Gemini only
+GEMINI_API_KEY=your-gemini-key
+
+# Mode 2: Gemini + NVIDIA
+GEMINI_API_KEY=your-gemini-key
+NVIDIA_API_KEY=nvapi-your-nvidia-key
+```
+
+**Fallback (mode 2 only, because it needs a second provider):** if the answer model returns no first token within 8 s (`LLM_FIRST_TOKEN_TIMEOUT_MS`), times out after 30 s (`LLM_REQUEST_TIMEOUT_MS`), answers 5xx, fails to connect, or is retired (404/410), the same request is retried once on the other provider. A 429 never switches providers: it shows a clear quota message (`PROVIDER_QUOTA`). Embeddings have no fallback.
+
+**Free Gemini tier:** about 1000 embedding requests a day (see [Free-tier quota](#free-tier-quota)).
+
+### Other APIs (advanced)
 
 Set in `server/.env` (examples in `server/.env.example`). Embeddings and chat are separate jobs, so each can use its own API:
 
-1. **Default:** `GEMINI_API_KEY` only. Gemini embeds; chat uses NVIDIA if `NVIDIA_API_KEY` is set, otherwise Gemini (one-time fallback to the other).
+1. **Default:** the two modes above.
 2. **One API for both:** `AI_BASE_URL` + `AI_API_KEY` (any OpenAI-compatible service), plus `EMBEDDING_MODEL` and `CHAT_MODEL`.
 3. **Two APIs:** `EMBEDDING_BASE_URL` / `EMBEDDING_API_KEY` / `EMBEDDING_MODEL` and `CHAT_BASE_URL` / `CHAT_API_KEY` / `CHAT_MODEL`; either side falls back to `AI_*`.
 
@@ -53,20 +80,7 @@ The free Gemini tier allows about 1000 embedding requests a day. Saving costs on
 
 ## Architecture
 
-```mermaid
-flowchart LR
-  UI[React UI] -->|/ingest| R[routes - zod]
-  UI -->|/query/stream| R
-  R --> IS[ingest.service]
-  R --> QS[query.service]
-  IS -->|url| F[fetchUrl - SSRF guard]
-  IS --> C[chunker] --> E[embedder - Gemini]
-  IS --> DB[(SQLite)]
-  QS --> E
-  QS --> VI[VectorIndex - in memory] --> RT[retriever - relevance filter]
-  RT --> P[prompt - source tags] --> L[llm - NVIDIA or Gemini]
-  DB -. loads at start .-> VI
-```
+![Architecture](docs/architecture.svg)
 
 **Save:** validate (zod) → (URL: SSRF check, fetch, Readability) → chunk → embed → one SQLite transaction (item + chunks + FTS rows) → update the in-memory index → `201 {item}`.
 **Ask:** validate → (follow-up: rewrite the question to stand alone) → embed question → vector + keyword search, fuse → relevance filter → wrap chunks in `<source>` tags → LLM → map `[n]` to sources → `{answer, sources, suggestions}`.
@@ -97,7 +111,7 @@ Nothing relevant saved → `200` with `answer: "I couldn't find that in your sav
 
 - **Chunking:** URLs split by `h1`-`h3` sections (sections never mix); each chunk starts with its heading. Inside a section, sentences are packed to about 2000 characters (~500 tokens) with the last 2 sentences repeated at the next chunk. Pieces under 200 characters merge into their neighbour. Short notes stay one chunk. The embedded text is `"<title> - <chunk>"`. Why: sentence boundaries keep facts intact, headings keep topics apart, overlap protects facts that straddle a boundary.
 - **Vector store:** vectors are stored in SQLite (one BLOB per chunk) and loaded at startup into one normalized `Float32Array`, so search is an exact dot product. Chosen because it needs no extra service, is exact, and survives restarts. Measured: 0.2 ms for 78 chunks, 19 ms for 10,000 chunks (3072 dims, synthetic).
-- **Models:** embeddings are Gemini `gemini-embedding-001` (3072 dims). Answers use NVIDIA `poolside/laguna-xs-2.1` when `NVIDIA_API_KEY` is set, otherwise Gemini `gemini-3.1-flash-lite`. If the first model times out (8 s to first token), 5xx's or is retired, the call retries once on the other provider.
+- **Models:** embeddings are Gemini `gemini-embedding-001` (3072 dims). Answers use NVIDIA `poolside/laguna-xs-2.1` when `NVIDIA_API_KEY` is set, otherwise Gemini `gemini-3.1-flash-lite`. With both keys set, a timeout (8 s to first token), 5xx or retired model retries once on the other provider.
 - **Hybrid search (default):** vector plus SQLite FTS5 keyword search (bm25), fused with a weighted score (0.7 vector, 0.3 keyword, min-max per list). On the 37-question people dataset it raised MRR from 0.94 to 0.98 and Hit@1 from 90% to 97% with no category worse. RRF was dropped because it ranked the second entity of two-entity questions lower (`HYBRID_FUSION=rrf` and `RETRIEVAL_MODE=vector` remain available).
 - **Relevance filter:** keep a chunk if its score is within 0.12 of the best, or at least 0.6 on its own. Nothing relevant: the model is told to reply with the exact not-found line.
 - **Citations:** sources are numbered in the prompt; the answer's `[n]` markers decide which sources are returned (one per item).
@@ -143,9 +157,9 @@ Results of the pre-submission audit (2026-11-19). "Automated" = a test in `serve
 
 ## Evaluation and tests
 
-- `npm test`: **100 tests in 23 files** (SSRF, injection, security, relevance, provider fallback, edit/delete, pin, chunking, vector index, hybrid, reindex).
+- `npm test`: **102 tests in 24 files** (SSRF, injection, security, relevance, provider fallback, edit/delete, pin, chunking, vector index, hybrid, reindex, not-found after fallback).
 - `npm run eval` (in `server/`, needs a running server): 13 questions (6 single, 2 follow-up chats, 3 not in the notes); last recorded score **13 / 13** on 2026-11-18 ([baseline](server/eval/baseline.md)).
-- Retrieval eval: `DB_PATH=<scratch.db> npm run seed:people` loads 23 fake-person notes; with a server on that DB (`DEBUG=true`), `npm run eval:full -- --config configs/vector.json` scores 37 questions in 8 categories into `server/eval/results/`. Vector-only: Recall@5 98%, MRR 0.94, Hit@1 90%; hybrid-weighted (default): 99%, 0.98, 97%; answers 97% correct and not-found 100% in both. A larger synthetic business dataset is in `business-rag-dataset/` and `server/eval/datasets/meridian.json`. `npm run eval:compare` diffs two reports.
+- Retrieval eval: `DB_PATH=<scratch.db> npm run seed:people` loads 23 fake-person notes; with a server on that DB (`DEBUG=true`), `npm run eval:full -- --config configs/vector.json` scores 37 questions in 8 categories into `server/eval/results/`. Vector-only: Recall@5 98%, MRR 0.94, Hit@1 90%; hybrid-weighted (default): 99%, 0.98, 97%; answers 97% correct and not-found 100% in both. The latest report is `server/eval/results/2026-11-19-hybrid-weighted.md`.
 - `DEBUG=true` adds a `debug` object to answers (rewritten question, candidates with scores and why they were kept, timings) and a "Show details" toggle in the UI.
 
 ## What breaks at scale and what to change for production
@@ -178,4 +192,4 @@ Results of the pre-submission audit (2026-11-19). "Automated" = a test in `serve
 - sqlite-vec, then pgvector or Qdrant for large data; job queue for ingestion
 - Classifier-based injection detection; server-side action approval with audit log; auth and multi-user isolation
 
-The full plan, rules and change log are in [`doc/DEVELOPMENT.md`](doc/DEVELOPMENT.md).
+The full plan, rules and change log are in [`docs/development-log.md`](docs/development-log.md).
