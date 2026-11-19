@@ -5,7 +5,7 @@ import { fuse, ftsQuery, newestOfDuplicates, RECENCY_BOOST, splitTopics, type Ra
 import { retrieveTopK, type Candidate, type NearMatch, type ScoredChunk } from "./retriever.js";
 import { vectorIndex } from "./vectorIndex.js";
 
-const POOL = 20; // top 20 from each search, as in the plan
+const POOL = 20; // top 20 from each search
 const MIN_SCORE = 0.25;
 const STRONG_KW = 3; // a chunk in the top 3 of the keyword search is kept even when its cosine is outside the window
 const ANCHORED_WINDOW = 0.03; // when such a keyword match exists, chunks without one must be this close to the best to stay (topic filter)

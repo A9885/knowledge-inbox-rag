@@ -18,3 +18,6 @@ server/eval/configs/meridian.json
 server/eval/datasets/meridian.json
 client/README.md
 server/tests/meridianRecords.test.ts
+!server/eval/results/2026-11-18-vector.md
+!server/eval/results/2026-11-18-hybrid-weighted.md
+!server/eval/results/2026-11-18-hybrid-rrf.md

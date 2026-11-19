@@ -12,4 +12,4 @@ Questions: `eval/questions.json` (13: 6 single, 2 follow-up chats of 2, 3 not-in
 
 Note: first-word time is far above the 0.3-0.5 s measured in the earlier model benchmark. The `DEBUG=true` timings
 show embedding at about 0.8 s and search at 7 ms, so the delay is the answer-model provider on the day of the run.
-Re-run when the provider is quiet before comparing later phases on speed; compare score first.
+Re-run when the provider is quiet before comparing speed across changes; compare the score first.
