@@ -1,5 +1,5 @@
 {
-  "name": "ai-knowledge-inbox",
+  "name": "knowledge-inbox-rag",
   "private": true,
   "scripts": {
     "setup": "npm ci && npm ci --prefix server && npm ci --prefix client && node -e \"const f=require('fs');f.existsSync('server/.env')||f.copyFileSync('server/.env.example','server/.env')\"",
