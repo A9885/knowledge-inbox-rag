@@ -28,7 +28,7 @@ Two ready-made setups. Set the lines in `server/.env`; nothing else changes.
 | Keys | `GEMINI_API_KEY` | `GEMINI_API_KEY` + `NVIDIA_API_KEY` |
 | Embeddings | Gemini `gemini-embedding-001` | Gemini `gemini-embedding-001` |
 | Answers | Gemini `gemini-3.1-flash-lite` | NVIDIA `poolside/laguna-xs-2.1` |
-| First word (median, 5 runs, 2026-11-18) | ~1057 ms | ~323 ms |
+| Answer-model first token (median of 5, 2026-11-18; the question embedding adds about 1-2 s end to end) | ~1057 ms | ~323 ms |
 | Strengths | one key, quick setup; better at partial answers | fastest answers |
 | Limits | slower; no fallback provider, so a Gemini overload or timeout is an error | stricter: sometimes refuses when the note is related but not an exact match |
 | Best for | reviewers, quick setup | speed |
