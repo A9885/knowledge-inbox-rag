@@ -19,6 +19,8 @@ How it works in five steps:
 Needs Node 24 and a Gemini API key (`GEMINI_API_KEY` is the only required setting).
 
 ```bash
+git clone https://github.com/A9885/knowledge-inbox-rag.git
+cd knowledge-inbox-rag
 npm run setup          # installs everything, creates server/.env from .env.example
 # put GEMINI_API_KEY in server/.env
 npm run dev            # API on http://localhost:4000, UI on http://localhost:5173
