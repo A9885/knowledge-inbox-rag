@@ -229,7 +229,7 @@ Security test results (2026-11-19). "Automated" = a test in `server/tests/` with
 
 ## Evaluation and tests
 
-- `npm test`: **112 tests in 25 files** (SSRF, injection, instruction-style questions, security, relevance, provider fallback, edit/delete, pin, chunking, vector index, hybrid, reindex, not-found after fallback).
+- `npm test`: **109 tests in 25 files** (SSRF, injection, instruction-style questions, security, relevance, provider fallback, edit/delete, pin, chunking, vector index, hybrid, reindex, not-found after fallback).
 - `npm run eval` (in `server/`, needs a running server): 13 questions (6 single, 2 follow-up chats, 3 not in the notes). Result: **13/13 on 2026-11-18** (NVIDIA answers; [baseline](server/eval/baseline.md)). Re-runs on 2026-11-19 scored 11/13; the misses were provider quota or timeouts (one not-found case showed sources after a timeout; a test now covers that path).
 - Retrieval eval: `DB_PATH=<scratch.db> npm run seed:people` loads 23 fake-person notes; with a server on that DB (`DEBUG=true`), `npm run eval:full -- --config configs/vector.json` (or `hybrid-weighted.json`) scores 37 questions in 8 categories into `server/eval/results/`. Numbers: see the table under Hybrid search.
 - `DEBUG=true` adds a `debug` object to answers (rewritten question, candidates with scores and why they were kept, timings) and a "Show details" toggle in the UI.
