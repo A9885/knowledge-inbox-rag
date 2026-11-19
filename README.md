@@ -30,7 +30,7 @@ Two ready-made setups. Set the lines in `server/.env`; nothing else changes.
 | Answers | Gemini `gemini-3.1-flash-lite` | NVIDIA `poolside/laguna-xs-2.1` |
 | Answer-model first token (median of 5, 2026-11-18; the question embedding adds about 1-2 s end to end) | ~1057 ms | ~323 ms |
 | Strengths | one key, quick setup; better at partial answers | fastest answers |
-| Limits | slower; no fallback provider, so a Gemini overload or timeout is an error | stricter: sometimes refuses when the note is related but not an exact match |
+| Limits | slower; no fallback provider: it waits up to 30 s for the first word, then a Gemini overload or timeout is an error | stricter: sometimes refuses when the note is related but not an exact match |
 | Best for | reviewers, quick setup | speed |
 
 ```bash
@@ -42,7 +42,7 @@ GEMINI_API_KEY=your-gemini-key
 NVIDIA_API_KEY=nvapi-your-nvidia-key
 ```
 
-**Fallback (mode 2 only, because it needs a second provider):** if the answer model returns no first token within 8 s (`LLM_FIRST_TOKEN_TIMEOUT_MS`), times out after 30 s (`LLM_REQUEST_TIMEOUT_MS`), answers 5xx, fails to connect, or is retired (404/410), the same request is retried once on the other provider. A 429 never switches providers: it shows a clear quota message (`PROVIDER_QUOTA`). Embeddings have no fallback.
+**Fallback (mode 2 only, because it needs a second provider; mode 1 just waits up to `LLM_REQUEST_TIMEOUT_MS`):** if the answer model returns no first token within 8 s (`LLM_FIRST_TOKEN_TIMEOUT_MS`), times out after 30 s (`LLM_REQUEST_TIMEOUT_MS`), answers 5xx, fails to connect, or is retired (404/410), the same request is retried once on the other provider. A 429 never switches providers: it shows a clear quota message (`PROVIDER_QUOTA`). Embeddings have no fallback.
 
 **Free Gemini tier:** about 1000 embedding requests a day (see [Free-tier quota](#free-tier-quota)).
 
@@ -157,7 +157,7 @@ Results of the pre-submission audit (2026-11-19). "Automated" = a test in `serve
 
 ## Evaluation and tests
 
-- `npm test`: **102 tests in 24 files** (SSRF, injection, security, relevance, provider fallback, edit/delete, pin, chunking, vector index, hybrid, reindex, not-found after fallback).
+- `npm test`: **104 tests in 25 files** (SSRF, injection, security, relevance, provider fallback, edit/delete, pin, chunking, vector index, hybrid, reindex, not-found after fallback).
 - `npm run eval` (in `server/`, needs a running server): 13 questions (6 single, 2 follow-up chats, 3 not in the notes); last recorded score **13 / 13** on 2026-11-18 ([baseline](server/eval/baseline.md)).
 - Retrieval eval: `DB_PATH=<scratch.db> npm run seed:people` loads 23 fake-person notes; with a server on that DB (`DEBUG=true`), `npm run eval:full -- --config configs/vector.json` scores 37 questions in 8 categories into `server/eval/results/`. Vector-only: Recall@5 98%, MRR 0.94, Hit@1 90%; hybrid-weighted (default): 99%, 0.98, 97%; answers 97% correct and not-found 100% in both. The latest report is `server/eval/results/2026-11-19-hybrid-weighted.md`.
 - `DEBUG=true` adds a `debug` object to answers (rewritten question, candidates with scores and why they were kept, timings) and a "Show details" toggle in the UI.

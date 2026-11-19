@@ -101,13 +101,13 @@ async function complete(t: Target, system: string, user: string): Promise<string
 }
 
 /** Streams one provider. If no token arrives within LLM_FIRST_TOKEN_TIMEOUT_MS the request is aborted with a timeout error. */
-async function* streamFrom(t: Target, system: string, user: string): AsyncGenerator<string> {
+async function* streamFrom(t: Target, system: string, user: string, firstTokenMs: number): AsyncGenerator<string> {
   const ac = new AbortController();
   let timedOut = false;
   let timer: ReturnType<typeof setTimeout> | undefined = setTimeout(() => {
     timedOut = true;
     ac.abort();
-  }, config.LLM_FIRST_TOKEN_TIMEOUT_MS);
+  }, firstTokenMs);
   try {
     const stream = await t.client.chat.completions.create(
       { model: t.model, temperature: 0, max_tokens: MAX_TOKENS, stream: true, messages: messages(system, user) },
@@ -121,7 +121,7 @@ async function* streamFrom(t: Target, system: string, user: string): AsyncGenera
       yield delta;
     }
   } catch (e) {
-    throw timedOut ? new LlmTimeoutError(config.LLM_FIRST_TOKEN_TIMEOUT_MS) : e;
+    throw timedOut ? new LlmTimeoutError(firstTokenMs) : e;
   } finally {
     clearTimeout(timer);
   }
@@ -146,8 +146,10 @@ export async function chat(system: string, user: string): Promise<string> {
 export async function* chatStream(system: string, user: string): AsyncGenerator<string> {
   const first = primary();
   let started = false;
+  // The short first-token limit only makes sense when there is another provider to switch to; otherwise wait the full request timeout.
+  const firstTokenMs = fallback(first) ? config.LLM_FIRST_TOKEN_TIMEOUT_MS : config.LLM_REQUEST_TIMEOUT_MS;
   try {
-    for await (const t of streamFrom(first, system, user)) {
+    for await (const t of streamFrom(first, system, user, firstTokenMs)) {
       started = true;
       yield t;
     }
@@ -156,6 +158,6 @@ export async function* chatStream(system: string, user: string): AsyncGenerator<
     const fb = reason && fallback(first);
     if (started || !fb || !reason) throw e;
     switching(first, fb, reason, e);
-    yield* streamFrom(fb, system, user);
+    yield* streamFrom(fb, system, user, config.LLM_REQUEST_TIMEOUT_MS); // last attempt: no other provider left
   }
 }
