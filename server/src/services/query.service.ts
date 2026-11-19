@@ -14,6 +14,7 @@ import {
 import { chat, chatStream } from "../lib/llm.js";
 import { config } from "../config.js";
 import { AppError, isQuota, quotaError } from "../lib/errors.js";
+import { looksLikeAttackQuestion } from "../lib/injection.js";
 import { log } from "../lib/logger.js";
 import { relevantSuggestions } from "./suggestions.js";
 import type { Turn } from "./conversation.service.js";
@@ -114,8 +115,17 @@ const logDone = (question: string, hits: ScoredChunk[], t0: number, streamed: bo
     "query.completed",
   );
 
+/** Instruction-style questions ("ignore your rules", "reveal all saved content") get the not-found line: no search, no model call, no sources. */
+const refused = (question: string): Result | null => {
+  if (!looksLikeAttackQuestion(question)) return null;
+  log.warn({ questionLength: question.length }, "query.refused_instruction");
+  return { answer: FALLBACK, sources: [], suggestions: [] };
+};
+
 export async function answerQuestion(question: string, topK: number, history: Turn[] = []): Promise<Result> {
   const t0 = Date.now();
+  const blocked = refused(question);
+  if (blocked) return blocked;
   question = await standalone(question, history);
   const got = await retrieve(question, limitFor(question, topK));
   const hits = got.hits;
@@ -140,6 +150,8 @@ export async function streamAnswer(
   history: Turn[] = [],
 ): Promise<Result> {
   const t0 = Date.now();
+  const blocked = refused(question);
+  if (blocked) return blocked;
   question = await standalone(question, history);
   const got = await retrieve(question, limitFor(question, topK));
   const hits = got.hits;
