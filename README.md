@@ -28,9 +28,9 @@ npm run dev            # API on http://localhost:4000, UI on http://localhost:51
 
 **Ports busy?** The API reads `PORT` (default 4000, set it in `server/.env`). Vite takes the next free UI port on its own (5174, ...) and prints it. If the API is not on 4000, create `client/.env` with `VITE_API_URL=http://localhost:<port>`. CORS accepts any `localhost` / `127.0.0.1` port. `npm run setup` uses `npm ci`, so installs follow the lockfiles exactly.
 
-Optional: `cd server && npm run seed` loads sample notes and URLs (needs the server running). `NVIDIA_API_KEY` is optional: see [AI modes](#ai-modes).
+Optional (from the repo root, with the server running): `npm run seed` loads sample notes and URLs, and `npm run eval` runs the 13-question check. `NVIDIA_API_KEY` is optional: see [AI modes](#ai-modes).
 
-Other scripts (run in `server/`): `npm test`, `npm run eval` (server running), `npm run reindex`, `npm run seed:people`, `npm run eval:full`. Root: `npm test`.
+Root scripts: `npm run setup`, `dev`, `test`, `seed`, `eval`, `reindex`. More in `server/`: `npm run seed:people`, `npm run eval:full`.
 
 ## AI modes
 
@@ -67,7 +67,7 @@ Set in `server/.env` (examples in `server/.env.example`). Embeddings and chat ar
 2. **One API for both:** `AI_BASE_URL` + `AI_API_KEY` (any OpenAI-compatible service), plus `EMBEDDING_MODEL` and `CHAT_MODEL`.
 3. **Two APIs:** `EMBEDDING_BASE_URL` / `EMBEDDING_API_KEY` / `EMBEDDING_MODEL` and `CHAT_BASE_URL` / `CHAT_API_KEY` / `CHAT_MODEL`; either side falls back to `AI_*`.
 
-The server checks the setup at start and says what is missing. **Changing the embedding model** makes stored vectors unusable: the database records which model made them, and the server refuses to start on a mismatch until you run `npm run reindex` (in `server/`) once.
+The server checks the setup at start and says what is missing. **Changing the embedding model** makes stored vectors unusable: the database records which model made them, and the server refuses to start on a mismatch until you run `npm run reindex` once.
 
 ### Free-tier quota
 
@@ -232,7 +232,7 @@ Security test results (2026-11-19). "Automated" = a test in `server/tests/` with
 ## Evaluation and tests
 
 - `npm test`: **109 tests in 25 files** (SSRF, injection, instruction-style questions, security, relevance, provider fallback, edit/delete, pin, chunking, vector index, hybrid, reindex, not-found after fallback).
-- `npm run eval` (in `server/`, needs a running server): 13 questions (6 single, 2 follow-up chats, 3 not in the notes). Result: **13/13 on 2026-11-18** (NVIDIA answers; [baseline](server/eval/baseline.md)). Re-runs on 2026-11-19 scored 11/13; the misses were provider quota or timeouts (one not-found case showed sources after a timeout; a test now covers that path).
+- `npm run eval` (needs a running server): 13 questions (6 single, 2 follow-up chats, 3 not in the notes). Result: **13/13 on 2026-11-18** (NVIDIA answers; [baseline](server/eval/baseline.md)). Re-runs on 2026-11-19 scored 11/13; the misses were provider quota or timeouts (one not-found case showed sources after a timeout; a test now covers that path).
 - Retrieval eval: `DB_PATH=<scratch.db> npm run seed:people` loads 23 fake-person notes; with a server on that DB (`DEBUG=true`), `npm run eval:full -- --config configs/vector.json` (or `hybrid-weighted.json`) scores 37 questions in 8 categories into `server/eval/results/`. Numbers: see the table under Hybrid search.
 - `DEBUG=true` adds a `debug` object to answers (rewritten question, candidates with scores and why they were kept, timings) and a "Show details" toggle in the UI.
 
